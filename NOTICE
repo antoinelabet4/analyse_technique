@@ -1,0 +1,12 @@
+Ce projet utilise TradingView Lightweight Charts™, vendorisé dans
+static/vendor/lightweight-charts.standalone.production.js.
+
+TradingView Lightweight Charts™
+Copyright (c) TradingView, Inc.
+Licence : Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0)
+Dépôt source : https://github.com/tradingview/lightweight-charts
+
+Le logo d'attribution TradingView intégré au graphique (bouton
+"Chart by TradingView" en bas à droite) ne doit pas être retiré sans
+fournir une attribution équivalente ailleurs dans l'interface, comme
+l'exige la licence Apache-2.0.
