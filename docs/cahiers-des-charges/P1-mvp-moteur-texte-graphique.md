@@ -26,9 +26,10 @@ déterministe, sans aucun chiffre inventé.
 ## État d'avancement
 
 **En cours — 23/10/2026.** Moteur d'indicateurs/niveaux/régime/scénarios
-codé et testé (voir journal). Restent à faire : récupération des données
-réelles (Binance/Kraken), force relative alts vs BTC, texte explicatif
-LLM avec contrôle automatique, wiring vers l'API et le graphique.
+et récupération de données réelles (Binance + fallback Kraken + cache
+SQLite) codés et testés (voir journal). Restent à faire : force relative
+alts vs BTC, texte explicatif LLM avec contrôle automatique, wiring vers
+l'API et le graphique.
 
 ## Critères de validation
 
@@ -63,3 +64,16 @@ LLM avec contrôle automatique, wiring vers l'API et le graphique.
   haussier/baissier/range avec cible et invalidation (support/résistance
   ou Kijun selon le plus proche). 42 tests unitaires passent, données
   figées (déterministes), aucun appel réseau ni LLM dans ce module.
+- **23/10/2026** — `app/data/market.py` codé : Binance (endpoint public
+  `data-api.binance.vision`) en priorité, Kraken en secours, cache SQLite
+  comme filet de sécurité si les deux échouent (jamais présenté comme une
+  donnée fraîche : champ `perime: true`). Accessibilité vérifiée en
+  conditions réelles depuis ce réseau pour les 5 actifs (BTC, ETH, XRP,
+  TAO, RENDER) sur les deux sources, en 1D et en 1W. 52 tests passent
+  (10 nouveaux : bascule de source, cache périmé, aucune source + aucun
+  cache, parsing contre des réponses réellement capturées le 23/10/2026).
+  Pipeline vérifié de bout en bout avec un appel réseau réel (hors suite
+  automatisée). Note : l'optimisation "pas de rappel réseau si aucune
+  bougie n'a clôturé" du brief d'origine est reportée à la couche de
+  cache des analyses (pas encore spécifiée), ce module privilégiant
+  toujours une donnée fraîche quand une source répond (voir spec).
