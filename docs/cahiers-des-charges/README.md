@@ -31,7 +31,7 @@ peut avoir plusieurs cahiers si son perimetre se decoupe naturellement
 | Phase | Cahier des charges | Etat |
 | - | - | - |
 | P0 | [Squelette Docker + acces mobile](./P0-squelette-acces-mobile.md) | En cours — 23/10/2026 (code et tests livrés ; build Docker et accès Tailscale réel restent à vérifier par le propriétaire) |
-| P1 | [MVP : moteur deterministe + texte + graphique (5 actifs)](./P1-mvp-moteur-texte-graphique.md) | A faire (spec en cours de redaction, 23/10/2026) |
+| P1 | [MVP : moteur deterministe + texte + graphique (5 actifs)](./P1-mvp-moteur-texte-graphique.md) | En cours — 23/10/2026 (moteur indicateurs/niveaux/regime/scenarios code et teste ; donnees reelles, texte LLM et wiring API restent a faire) |
 | P2 | Derives (funding, OI, options) et macro (F&G, dominance, DXY, S&P) | A faire |
 | P3 | On-chain, lignes de tendance, declenchement n8n | A faire |
 

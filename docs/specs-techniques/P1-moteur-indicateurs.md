@@ -1,7 +1,7 @@
 # Spec technique : moteur d'indicateurs (MM/EMA/RSI/ATR/Ichimoku) et niveaux
 
 Cahier associé : docs/cahiers-des-charges/P1-mvp-moteur-texte-graphique.md
-Statut : brouillon
+Statut : validé le 23/10/2026 par le propriétaire ("Go")
 
 ## Besoin
 

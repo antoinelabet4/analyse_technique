@@ -25,7 +25,10 @@ déterministe, sans aucun chiffre inventé.
 
 ## État d'avancement
 
-**À faire — spec en cours de rédaction, 23/10/2026.**
+**En cours — 23/10/2026.** Moteur d'indicateurs/niveaux/régime/scénarios
+codé et testé (voir journal). Restent à faire : récupération des données
+réelles (Binance/Kraken), force relative alts vs BTC, texte explicatif
+LLM avec contrôle automatique, wiring vers l'API et le graphique.
 
 ## Critères de validation
 
@@ -51,3 +54,12 @@ déterministe, sans aucun chiffre inventé.
   sont pas une information publique vérifiable dont je dispose ; la spec
   part des réglages classiques (9/26/52/26) et ce point est marqué comme
   à confirmer avant validation définitive, pas comme un fait établi.
+- **23/10/2026** — Spec validée ("Go"). `app/engine/indicators.py` codé :
+  SMA/EMA/RSI/ATR, Ichimoku complet (nuage traité comme un niveau
+  dynamique au même titre que les zones de pivots), détection de pivots
+  et regroupement en zones avec tolérance ATR, inversion de rôle
+  (heuristique documentée dans le docstring), régime de marché combinant
+  MM/EMA longue et signaux Ichimoku sans score composite caché, scénarios
+  haussier/baissier/range avec cible et invalidation (support/résistance
+  ou Kijun selon le plus proche). 42 tests unitaires passent, données
+  figées (déterministes), aucun appel réseau ni LLM dans ce module.
