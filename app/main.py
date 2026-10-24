@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hmac
+import logging
 import os
 from pathlib import Path
 
@@ -16,6 +17,13 @@ from app.llm.analysis import DebitDepasse, PlafondAtteint, TexteNonFiable, gener
 from app.notifications.telegram import TelegramEnvoiEchec, envoyer_message
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+
+# Explicite plutôt que de dépendre du handler de secours par défaut de
+# Python (silencieux dans certaines configurations de conteneur) : sans
+# ça, une exception interceptée ne laissait aucune trace exploitable dans
+# les logs Coolify, rendant le diagnostic impossible sans deviner.
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger("app")
 
 app = FastAPI(title="Analyse technique crypto")
 
@@ -71,8 +79,10 @@ def api_analysis_llm(asset: str, timeframe: str) -> dict:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except Exception as exc:
         # Erreur non anticipée côté LLM (clé manquante/invalide, Anthropic
-        # indisponible, etc.) : message explicite, jamais de détail
-        # interne (trace, clé) renvoyé au client.
+        # indisponible, etc.) : message explicite au client, jamais de
+        # détail interne (trace, clé) exposé ; la trace complète part
+        # dans les logs serveur pour pouvoir diagnostiquer sans deviner.
+        logger.exception("Échec de l'appel LLM pour %s/%s", asset, timeframe)
         raise HTTPException(status_code=502, detail="Le texte explicatif est indisponible pour le moment.") from exc
     return {
         "texte": resultat.texte,
