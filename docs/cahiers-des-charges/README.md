@@ -33,7 +33,7 @@ peut avoir plusieurs cahiers si son perimetre se decoupe naturellement
 | P0 | [Squelette Docker + acces mobile](./P0-squelette-acces-mobile.md) | En cours — 23/10/2026 (code et tests livrés ; build Docker et accès Tailscale réel restent à vérifier par le propriétaire) |
 | P1 | [MVP : moteur deterministe + texte + graphique (5 actifs)](./P1-mvp-moteur-texte-graphique.md) | En cours — 23/10/2026 (moteur indicateurs/niveaux/regime/scenarios code et teste ; donnees reelles, texte LLM et wiring API restent a faire) |
 | P2 | [Derives (funding, OI, options) et macro (F&G, dominance, DXY, S&P)](./P2-derives-macro.md) | Fait pour la portee retenue — 24/10/2026 (funding/OI a reconfirmer depuis le mini PC, France) |
-| P3 | On-chain, lignes de tendance, declenchement n8n | A faire |
+| P3 | [On-chain, lignes de tendance, declenchement n8n](./P3-onchain-cycle-n8n.md) | A faire (recherche de source faite, clarifications en attente, 24/10/2026) |
 
 Ce tableau est mis a jour a chaque fois qu'un cahier des charges change
 d'etat.
