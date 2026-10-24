@@ -4,7 +4,9 @@ from fastapi.testclient import TestClient
 from app.data.derivatives import FundingOI, OptionsContext
 from app.data.macro import Dominance, FearGreed, IndiceMacro
 from app.data.market import Candle, CandlesResult, SourceUnavailable
+from app.data.onchain import OnchainMetrics
 from app.engine import facts as facts_module
+from app.engine.cycle import CanalCycle
 from app.fixtures import generate_demo_candles
 from app.main import app
 
@@ -14,14 +16,21 @@ client = TestClient(app)
 @pytest.fixture(autouse=True)
 def _pas_de_reseau_derives_macro(monkeypatch):
     """Ces sources ont leur propre suite de tests (tests/data/test_derivatives.py,
-    tests/data/test_macro.py) ; ici on les neutralise pour ne jamais dépendre
-    du réseau réel dans les tests de l'endpoint /api/analysis."""
+    tests/data/test_macro.py, tests/data/test_onchain.py, tests/engine/test_cycle*.py) ;
+    ici on les neutralise pour ne jamais dépendre du réseau réel dans les
+    tests de l'endpoint /api/analysis."""
     monkeypatch.setattr(facts_module, "get_funding_oi", lambda asset: FundingOI(disponible=False, raison="non testé ici"))
     monkeypatch.setattr(facts_module, "get_options_context", lambda asset: OptionsContext(disponible=False, raison="non testé ici"))
     monkeypatch.setattr(facts_module, "get_fear_greed", lambda: FearGreed(disponible=False, raison="non testé ici"))
     monkeypatch.setattr(facts_module, "get_btc_dominance", lambda: Dominance(disponible=False, raison="non testé ici"))
     monkeypatch.setattr(facts_module, "get_sp500", lambda: IndiceMacro(disponible=False, raison="non testé ici"))
     monkeypatch.setattr(facts_module, "get_dxy", lambda: IndiceMacro(disponible=False, raison="non testé ici"))
+    monkeypatch.setattr(facts_module, "get_onchain_metrics", lambda: OnchainMetrics(disponible=False, raison="non testé ici"))
+    monkeypatch.setattr(
+        facts_module,
+        "get_btc_cycle_channel",
+        lambda: CanalCycle(tendance_actuelle=0, borne_haute_actuelle=0, borne_basse_actuelle=0, position="indisponible", nb_bougies=0, disponible=False, raison="non testé ici"),
+    )
 
 
 def _candles_result(days: int = 90) -> CandlesResult:

@@ -1,15 +1,19 @@
 from __future__ import annotations
 
+import hmac
+import os
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.data.market import ASSETS, SourceUnavailable
+from app.engine.daily_summary import construire_resume_quotidien
 from app.engine.facts import build_facts
 from app.fixtures import generate_demo_candles
 from app.llm.analysis import DebitDepasse, PlafondAtteint, TexteNonFiable, generer_analyse
+from app.notifications.telegram import TelegramEnvoiEchec, envoyer_message
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
@@ -75,6 +79,19 @@ def api_analysis_llm(asset: str, timeframe: str) -> dict:
         "source_cache": resultat.source_cache,
         "genere_le": resultat.genere_le,
     }
+
+
+@app.post("/api/daily-trigger")
+def api_daily_trigger(x_trigger_token: str | None = Header(default=None)) -> dict:
+    token_attendu = os.environ.get("N8N_TRIGGER_TOKEN")
+    if not token_attendu or not x_trigger_token or not hmac.compare_digest(x_trigger_token, token_attendu):
+        raise HTTPException(status_code=401, detail="Token de déclenchement invalide ou absent")
+    try:
+        resume = construire_resume_quotidien()
+        envoyer_message(resume)
+    except TelegramEnvoiEchec as exc:
+        raise HTTPException(status_code=502, detail="Échec de l'envoi Telegram") from exc
+    return {"statut": "envoye"}
 
 
 @app.get("/")

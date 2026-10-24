@@ -104,6 +104,71 @@ header span {
   color: white;
 }
 
+.selecteurs-secondaires {
+  padding-top: 0;
+  padding-bottom: 0.4rem;
+}
+
+.menu-indicateurs {
+  position: relative;
+  flex: 1;
+}
+
+.menu-indicateurs summary {
+  list-style: none;
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.menu-indicateurs summary::-webkit-details-marker {
+  display: none;
+}
+
+.menu-indicateurs summary::after {
+  content: " ▾";
+  color: var(--muted);
+}
+
+.menu-indicateurs-panneau {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  z-index: 10;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.6rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 13rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.menu-indicateurs-panneau label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.bouton-secondaire {
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .legende-zones {
   display: flex;
   gap: 1rem;
@@ -155,6 +220,62 @@ header span {
 
 #chart.chargement {
   opacity: 0.4;
+}
+
+.bouton-fermer-plein-ecran {
+  display: none;
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  z-index: 20;
+  background: rgba(21, 26, 35, 0.9);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 2.2rem;
+  height: 2.2rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* Mode plein écran "maison" (pas l'API Fullscreen du navigateur, qui
+   n'est pas fiable sur Safari iOS pour un élément autre qu'une vidéo) :
+   le graphique prend tout le viewport, le reste de l'interface est
+   masqué. Fonctionne identiquement, que le téléphone soit tourné ou
+   non. */
+body.plein-ecran-graphique #chart-wrapper {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+  z-index: 100;
+}
+
+body.plein-ecran-graphique #chart {
+  height: 100vh;
+  height: 100dvh;
+}
+
+body.plein-ecran-graphique .bouton-fermer-plein-ecran {
+  display: block;
+}
+
+body.plein-ecran-graphique header,
+body.plein-ecran-graphique .selecteurs,
+body.plein-ecran-graphique .legende-zones,
+body.plein-ecran-graphique #analyse-llm,
+body.plein-ecran-graphique #resume,
+body.plein-ecran-graphique footer {
+  display: none;
+}
+
+/* Si le téléphone est physiquement tourné en paysage, le graphique
+   profite automatiquement de plus de hauteur même hors plein écran. */
+@media (orientation: landscape) and (max-height: 500px) {
+  #chart {
+    height: 80vh;
+  }
 }
 
 #nuage-svg {
