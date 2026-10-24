@@ -1,11 +1,27 @@
+import pytest
 from fastapi.testclient import TestClient
 
+from app.data.derivatives import FundingOI, OptionsContext
+from app.data.macro import Dominance, FearGreed, IndiceMacro
 from app.data.market import Candle, CandlesResult, SourceUnavailable
 from app.engine import facts as facts_module
 from app.fixtures import generate_demo_candles
 from app.main import app
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _pas_de_reseau_derives_macro(monkeypatch):
+    """Ces sources ont leur propre suite de tests (tests/data/test_derivatives.py,
+    tests/data/test_macro.py) ; ici on les neutralise pour ne jamais dépendre
+    du réseau réel dans les tests de l'endpoint /api/analysis."""
+    monkeypatch.setattr(facts_module, "get_funding_oi", lambda asset: FundingOI(disponible=False, raison="non testé ici"))
+    monkeypatch.setattr(facts_module, "get_options_context", lambda asset: OptionsContext(disponible=False, raison="non testé ici"))
+    monkeypatch.setattr(facts_module, "get_fear_greed", lambda: FearGreed(disponible=False, raison="non testé ici"))
+    monkeypatch.setattr(facts_module, "get_btc_dominance", lambda: Dominance(disponible=False, raison="non testé ici"))
+    monkeypatch.setattr(facts_module, "get_sp500", lambda: IndiceMacro(disponible=False, raison="non testé ici"))
+    monkeypatch.setattr(facts_module, "get_dxy", lambda: IndiceMacro(disponible=False, raison="non testé ici"))
 
 
 def _candles_result(days: int = 90) -> CandlesResult:
@@ -28,6 +44,8 @@ def test_api_analysis_btc_1d_has_no_force_relative(monkeypatch):
     assert len(data["ichimoku"]["nuage_serie"]) > 0
     point = data["ichimoku"]["nuage_serie"][0]
     assert set(point.keys()) == {"time", "senkou_a", "senkou_b"}
+    assert data["derives"]["funding_oi"]["disponible"] is False
+    assert data["macro"]["fear_greed"]["disponible"] is False
 
 
 def test_api_analysis_alt_includes_force_relative(monkeypatch):

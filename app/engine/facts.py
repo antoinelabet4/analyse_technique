@@ -11,6 +11,8 @@ from typing import Any
 
 import pandas as pd
 
+from app.data.derivatives import get_funding_oi, get_options_context
+from app.data.macro import get_btc_dominance, get_dxy, get_fear_greed, get_sp500
 from app.data.market import get_candles
 from app.engine.indicators import atr, ema, ichimoku, levels, regime, rsi, scenarios, sma
 from app.engine.relative_strength import relative_strength
@@ -88,6 +90,32 @@ def build_facts(asset: str, timeframe: str) -> dict:
             # jamais une estimation.
             force_relative = None
 
+    # Dérivés et macro : chaque source gère déjà son propre échec en
+    # interne (disponible=False + raison), mais on isole quand même ici
+    # pour qu'un bug imprévu dans ces modules ne casse jamais l'affichage
+    # du moteur déterministe principal.
+    try:
+        derives = {
+            "funding_oi": asdict(get_funding_oi(asset)),
+            "options": asdict(get_options_context(asset)),
+        }
+    except Exception:
+        derives = {
+            "funding_oi": {"disponible": False, "raison": "erreur interne"},
+            "options": {"disponible": False, "raison": "erreur interne"},
+        }
+
+    try:
+        macro = {
+            "fear_greed": asdict(get_fear_greed()),
+            "dominance_btc": asdict(get_btc_dominance()),
+            "sp500": asdict(get_sp500()),
+            "dxy": asdict(get_dxy()),
+        }
+    except Exception:
+        indisponible = {"disponible": False, "raison": "erreur interne"}
+        macro = {"fear_greed": indisponible, "dominance_btc": indisponible, "sp500": indisponible, "dxy": indisponible}
+
     return {
         "actif": asset,
         "timeframe": timeframe,
@@ -113,5 +141,7 @@ def build_facts(asset: str, timeframe: str) -> dict:
         "regime": asdict(regime_result),
         "scenarios": [asdict(s) for s in scenarios_list],
         "force_relative_btc": force_relative,
+        "derives": derives,
+        "macro": macro,
         "candles": candles.to_dict(orient="records"),
     }
