@@ -1,7 +1,7 @@
 # Spec technique : texte explicatif LLM + déclenchement manuel
 
 Cahier associé : docs/cahiers-des-charges/P1-mvp-moteur-texte-graphique.md
-Statut : brouillon — deux valeurs manquantes signalées ci-dessous (ne pas deviner, voir CLAUDE.md "jamais deviner, soit on sait soit on ne sait pas")
+Statut : validé le 24/10/2026 par le propriétaire (plafond 20 appels/jour, débit 10s minimum entre deux clics)
 
 ## Besoin
 
@@ -52,19 +52,15 @@ l'optimisation différée dans `docs/specs-techniques/P1-recuperation-donnees.md
   que de servir un texte non conforme.
 - Réponse : `{texte: {tendance, niveaux, scenarios, ce_qui_changerait, risques}, source_cache: bool, genere_le: datetime}`.
 
-## Garde-fous de coût (deux valeurs à confirmer, je ne les devine pas)
+## Garde-fous de coût (validés le 24/10/2026)
 
-- **Plafond quotidien d'appels LLM** : non communiqué. Je propose un
-  compteur journalier dans SQLite (reset à minuit UTC) avec une valeur
-  par défaut **à valider par vous**, par exemple 50 appels/jour — ce
-  n'est qu'une proposition, pas une décision prise.
-- **Limitation de débit** (par IP, par session, ou globale vu l'usage
-  solo) : non communiquée. Proposition : un verrou simple empêchant deux
-  appels en moins de 10 secondes, le temps que vous confirmiez si plus
-  strict est nécessaire.
+- **Plafond quotidien d'appels LLM : 20 appels/jour.** Compteur
+  journalier dans SQLite (table `llm_usage`, reset à minuit UTC).
+- **Limitation de débit : 10 secondes minimum entre deux appels**
+  (verrou global, usage solo donc pas de distinction par IP/session).
 - Au-delà du plafond ou en cas de débit dépassé, le bouton affiche
-  clairement "Plafond quotidien atteint" / "Veuillez patienter", jamais
-  une erreur généique.
+  clairement "Plafond quotidien atteint (20/jour)" / "Veuillez
+  patienter quelques secondes", jamais une erreur générique.
 
 ## Garde-fous
 

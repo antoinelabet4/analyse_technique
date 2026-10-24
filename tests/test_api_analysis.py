@@ -25,6 +25,9 @@ def test_api_analysis_btc_1d_has_no_force_relative(monkeypatch):
     assert data["actif"] == "BTC"
     assert data["force_relative_btc"] is None
     assert "ichimoku" in data and "niveaux" in data and "scenarios" in data
+    assert len(data["ichimoku"]["nuage_serie"]) > 0
+    point = data["ichimoku"]["nuage_serie"][0]
+    assert set(point.keys()) == {"time", "senkou_a", "senkou_b"}
 
 
 def test_api_analysis_alt_includes_force_relative(monkeypatch):

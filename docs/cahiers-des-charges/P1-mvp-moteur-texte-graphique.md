@@ -25,11 +25,14 @@ déterministe, sans aucun chiffre inventé.
 
 ## État d'avancement
 
-**En cours — 24/10/2026.** Moteur d'indicateurs/niveaux/régime/scénarios,
-récupération de données réelles (Binance + fallback Kraken + cache
-SQLite), force relative vs BTC, et câblage API + graphique mobile codés,
-testés et vérifiés dans un vrai navigateur (voir journal). Reste à
-faire : texte explicatif LLM avec contrôle automatique.
+**Fait pour la portée retenue — 24/10/2026.** Moteur d'indicateurs/
+niveaux/régime/scénarios, récupération de données réelles (Binance +
+fallback Kraken + cache SQLite), force relative vs BTC, câblage API +
+graphique mobile, nuage Ichimoku en vrai ruban coloré (SVG, suit
+Senkou A/B dans le temps), et texte explicatif LLM avec déclenchement
+manuel et contrôle automatique, codés, testés et vérifiés dans un vrai
+navigateur (voir journal). Reste en discussion : certaines demandes
+d'itération UI (zones toujours présentes, etc.), traitées séparément.
 
 ## Critères de validation
 
@@ -122,3 +125,30 @@ faire : texte explicatif LLM avec contrôle automatique.
   - Vérifié dans un vrai navigateur (chargement, bascule d'actif avec
     zoom/pan, positionnement des bandes). 63 tests toujours verts (aucun
     changement backend).
+- **24/10/2026** — Texte explicatif LLM codé (`app/llm/analysis.py`,
+  `app/llm/facts_check.py`) : bouton "Lancer l'analyse" superposé au
+  graphique (demande explicite du propriétaire, pour maîtriser le coût,
+  jamais d'appel automatique), réinitialisé à chaque changement
+  d'actif/timeframe. Cache SQLite par bougie clôturée, plafond quotidien
+  20 appels/jour, débit minimum 10s entre deux appels (valeurs validées
+  par le propriétaire le 24/10/2026, non devinées — voir CLAUDE.md
+  "jamais deviner"). Contrôle automatique : chaque nombre du texte généré
+  doit être retrouvable dans le JSON "facts" (tolérance d'arrondi,
+  périodes d'indicateurs comme "RSI14" exemptées), une regénération
+  tentée en cas d'échec, sinon erreur explicite jamais un texte non
+  fiable affiché. 79 tests passent (appel LLM réel non testé en CI,
+  vérifié manuellement que l'absence de clé API produit une erreur
+  propre côté interface, sans fuite de détail interne).
+- **24/10/2026** — Nuage Ichimoku redessiné en vrai ruban coloré (SVG
+  superposé, polygones suivant Senkou A/Senkou B dans le temps, vert si
+  haussier/rouge si baissier), sur demande explicite du propriétaire
+  avec référence visuelle (illustration Binance Academy). Le backend
+  expose désormais la série complète (`ichimoku.nuage_serie`), pas
+  seulement les valeurs actuelles. Bug de rendu trouvé et corrigé
+  pendant la vérification : le SVG ne s'affichait pas malgré des
+  coordonnées correctes, à cause des `z-index` explicites posés par les
+  canvas internes de Lightweight Charts sur les bougies — un `z-index`
+  explicite sur notre SVG résout le conflit d'empilement. Limite connue,
+  non traitée pour l'instant : le nuage ne se projette pas au-delà de la
+  dernière bougie (projection future), seule la partie historique est
+  dessinée.

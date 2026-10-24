@@ -59,6 +59,12 @@ def build_facts(asset: str, timeframe: str) -> dict:
         moyennes_mobiles = {"ema200": _nombre_ou_none(ema(closes, 200).iloc[-1])}
         mm_longue = ema(closes, 200)
 
+    nuage_serie = [
+        {"time": t, "senkou_a": _nombre_ou_none(a), "senkou_b": _nombre_ou_none(b)}
+        for t, a, b in zip(candles["time"], ichimoku_result.senkou_a, ichimoku_result.senkou_b)
+        if not (pd.isna(a) or pd.isna(b))
+    ]
+
     niveaux = levels(candles, atr_series, ichimoku_result)
     regime_result = regime(candles, mm_longue, ichimoku_result)
     scenarios_list = scenarios(candles, niveaux, ichimoku_result, timeframe)
@@ -101,6 +107,7 @@ def build_facts(asset: str, timeframe: str) -> dict:
             "couleur_nuage": ichimoku_result.couleur_nuage,
             "tenkan_vs_kijun": ichimoku_result.tenkan_vs_kijun,
             "chikou_vs_prix_historique": ichimoku_result.chikou_vs_prix_historique,
+            "nuage_serie": nuage_serie,
         },
         "niveaux": [_level_to_dict(l) for l in niveaux],
         "regime": asdict(regime_result),
