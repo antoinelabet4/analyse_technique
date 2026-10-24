@@ -139,13 +139,23 @@ def _ecrire_cache(conn: sqlite3.Connection, asset: str, timeframe: str, derniere
     return genere_le
 
 
+def _facts_pour_prompt(facts: dict) -> dict:
+    """Retire les séries volumineuses (bougies, série du nuage) inutiles au
+    texte qualitatif : réduit le coût par appel sans retirer aucune valeur
+    résumée (prix, indicateurs, niveaux, scénarios...) dont dispose le LLM."""
+    reduit = {k: v for k, v in facts.items() if k != "candles"}
+    if isinstance(reduit.get("ichimoku"), dict):
+        reduit["ichimoku"] = {k: v for k, v in reduit["ichimoku"].items() if k != "nuage_serie"}
+    return reduit
+
+
 def _appeler_llm(facts: dict, modele: str) -> dict:
     client = anthropic.Anthropic()
     message = client.messages.create(
         model=modele,
         max_tokens=1500,
         system=PROMPT_SYSTEME,
-        messages=[{"role": "user", "content": json.dumps(facts, ensure_ascii=False)}],
+        messages=[{"role": "user", "content": json.dumps(_facts_pour_prompt(facts), ensure_ascii=False)}],
     )
     texte_brut = "".join(bloc.text for bloc in message.content if bloc.type == "text")
     texte = json.loads(texte_brut)
