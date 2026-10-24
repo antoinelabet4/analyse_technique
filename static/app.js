@@ -3,6 +3,26 @@ let chart, series;
 let derniereRequeteId = 0;
 let bandes = {}; // nom -> élément DOM de la bande colorée
 
+function chargerIndicateursVisibles() {
+  const defaut = { mm: true, nuage: true, niveaux: true, zones: true };
+  try {
+    const sauvegarde = localStorage.getItem("indicateursVisibles");
+    return sauvegarde ? { ...defaut, ...JSON.parse(sauvegarde) } : defaut;
+  } catch (err) {
+    return defaut; // localStorage indisponible (navigation privée, etc.)
+  }
+}
+
+const INDICATEURS_VISIBLES = chargerIndicateursVisibles();
+
+function sauvegarderIndicateursVisibles() {
+  try {
+    localStorage.setItem("indicateursVisibles", JSON.stringify(INDICATEURS_VISIBLES));
+  } catch (err) {
+    // Tant pis, préférence non mémorisée pour la prochaine visite.
+  }
+}
+
 function creerBande(nom, classeCss) {
   const conteneur = document.getElementById("chart-overlay");
   const div = document.createElement("div");
@@ -35,8 +55,9 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 
 function dessinerNuage() {
   const svg = document.getElementById("nuage-svg");
-  const serie = DERNIERES_DONNEES?.ichimoku?.nuage_serie;
   svg.innerHTML = "";
+  if (!INDICATEURS_VISIBLES.nuage) return;
+  const serie = DERNIERES_DONNEES?.ichimoku?.nuage_serie;
   if (!serie || serie.length < 2) return;
 
   // Projette chaque point en pixels, avec le haut/bas réel du nuage à cet
@@ -86,8 +107,29 @@ function dessinerNuage() {
 function repositionnerToutesLesBandes() {
   if (!DERNIERES_DONNEES) return;
   dessinerNuage();
-  positionnerBande("opportunite", DERNIERES_DONNEES.zone_opportunite?.haut, DERNIERES_DONNEES.zone_opportunite?.bas);
-  positionnerBande("risque", DERNIERES_DONNEES.zone_risque?.haut, DERNIERES_DONNEES.zone_risque?.bas);
+  if (INDICATEURS_VISIBLES.zones) {
+    positionnerBande("opportunite", DERNIERES_DONNEES.zone_opportunite?.haut, DERNIERES_DONNEES.zone_opportunite?.bas);
+    positionnerBande("risque", DERNIERES_DONNEES.zone_risque?.haut, DERNIERES_DONNEES.zone_risque?.bas);
+  } else {
+    bandes.opportunite.style.display = "none";
+    bandes.risque.style.display = "none";
+  }
+}
+
+function redessinerIndicateurs() {
+  if (!DERNIERES_DONNEES) return;
+  viderLignesDePrix();
+  if (INDICATEURS_VISIBLES.mm) {
+    for (const [nom, valeur] of Object.entries(DERNIERES_DONNEES.moyennes_mobiles)) {
+      ajouterLigneDePrix(valeur, nom.toUpperCase(), "#58a6ff");
+    }
+  }
+  if (INDICATEURS_VISIBLES.niveaux) {
+    for (const n of DERNIERES_DONNEES.niveaux) {
+      if (n.type !== "nuage") ajouterLigneDePrix(n.prix_haut, "Niveau", "#8b949e");
+    }
+  }
+  repositionnerToutesLesBandes();
 }
 
 let DERNIERES_DONNEES = null;
@@ -114,11 +156,7 @@ function initChart() {
 
   chart.timeScale().subscribeVisibleTimeRangeChange(repositionnerToutesLesBandes);
 
-  window.addEventListener("resize", () => {
-    const el = document.getElementById("chart");
-    chart.applyOptions({ width: el.clientWidth, height: el.clientHeight });
-    repositionnerToutesLesBandes();
-  });
+  window.addEventListener("resize", () => redimensionnerChart());
 
   // Filet de sécurité : certains gestes tactiles (pinch/pan sur Safari iOS)
   // ne déclenchent pas toujours subscribeVisibleTimeRangeChange de façon
@@ -302,14 +340,7 @@ async function chargerAnalyse() {
     series.setData(data.candles);
     chart.timeScale().fitContent();
 
-    for (const [nom, valeur] of Object.entries(data.moyennes_mobiles)) {
-      ajouterLigneDePrix(valeur, nom.toUpperCase(), "#58a6ff");
-    }
-    for (const n of data.niveaux) {
-      if (n.type !== "nuage") ajouterLigneDePrix(n.prix_haut, "Niveau", "#8b949e");
-    }
-
-    repositionnerToutesLesBandes();
+    redessinerIndicateurs();
     afficherSource(data);
     reinitialiserBoutonAnalyse();
     afficherResume(data);
@@ -377,6 +408,56 @@ async function lancerAnalyseLLM() {
   }
 }
 
+function initMenuIndicateurs() {
+  const menu = document.getElementById("menu-indicateurs");
+  menu.querySelectorAll("input[data-indicateur]").forEach((case_) => {
+    case_.checked = INDICATEURS_VISIBLES[case_.dataset.indicateur];
+    case_.addEventListener("change", () => {
+      INDICATEURS_VISIBLES[case_.dataset.indicateur] = case_.checked;
+      sauvegarderIndicateursVisibles();
+      redessinerIndicateurs();
+    });
+  });
+  // Ferme le menu si on touche ailleurs sur l'écran.
+  document.addEventListener("click", (e) => {
+    if (menu.open && !menu.contains(e.target)) menu.open = false;
+  });
+}
+
+function redimensionnerChart() {
+  const el = document.getElementById("chart");
+  chart.applyOptions({ width: el.clientWidth, height: el.clientHeight });
+  repositionnerToutesLesBandes();
+}
+
+function initPleinEcran() {
+  const boutonOuvrir = document.getElementById("bouton-plein-ecran");
+  const boutonFermer = document.getElementById("bouton-fermer-plein-ecran");
+  const wrapper = document.getElementById("chart-wrapper");
+
+  function ouvrir() {
+    document.body.classList.add("plein-ecran-graphique");
+    // Tentative best-effort de la vraie API Fullscreen (fonctionne sur
+    // Chrome/Android ; Safari iOS l'ignore silencieusement pour un
+    // élément hors <video>, le mode CSS ci-dessus reste le filet de
+    // sécurité qui marche partout).
+    wrapper.requestFullscreen?.().catch(() => {});
+    setTimeout(redimensionnerChart, 50);
+  }
+
+  function fermer() {
+    document.body.classList.remove("plein-ecran-graphique");
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    setTimeout(redimensionnerChart, 50);
+  }
+
+  boutonOuvrir.addEventListener("click", ouvrir);
+  boutonFermer.addEventListener("click", fermer);
+  document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement) fermer();
+  });
+}
+
 function initControles() {
   document.getElementById("bouton-analyse").addEventListener("click", lancerAnalyseLLM);
   document.getElementById("selecteur-actif").addEventListener("change", (e) => {
@@ -390,6 +471,9 @@ function initControles() {
       chargerAnalyse();
     });
   });
+  initMenuIndicateurs();
+  initPleinEcran();
+  window.addEventListener("orientationchange", () => setTimeout(redimensionnerChart, 100));
 }
 
 async function chargerListeActifs() {

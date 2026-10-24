@@ -31,6 +31,19 @@
     </div>
   </div>
 
+  <div class="selecteurs selecteurs-secondaires">
+    <details id="menu-indicateurs" class="menu-indicateurs">
+      <summary>Indicateurs</summary>
+      <div class="menu-indicateurs-panneau">
+        <label><input type="checkbox" data-indicateur="mm" checked /> Moyennes mobiles</label>
+        <label><input type="checkbox" data-indicateur="nuage" checked /> Nuage Ichimoku</label>
+        <label><input type="checkbox" data-indicateur="niveaux" checked /> Niveaux</label>
+        <label><input type="checkbox" data-indicateur="zones" checked /> Zones opportunité/risque</label>
+      </div>
+    </details>
+    <button id="bouton-plein-ecran" class="bouton-secondaire" aria-label="Agrandir le graphique">⤢ Agrandir</button>
+  </div>
+
   <div class="legende-zones">
     <span><span class="pastille pastille-opportunite"></span>Opportunité</span>
     <span><span class="pastille pastille-risque"></span>Risque</span>
@@ -38,6 +51,7 @@
   </div>
 
   <div id="chart-wrapper">
+    <button id="bouton-fermer-plein-ecran" class="bouton-fermer-plein-ecran" aria-label="Quitter le plein écran">✕</button>
     <div id="chart"></div>
     <svg id="nuage-svg"></svg>
     <div id="chart-overlay"></div>
