@@ -1,6 +1,45 @@
 const ETAT = { actif: "BTC", timeframe: "1d" };
 let chart, series;
 let derniereRequeteId = 0;
+let bandes = {}; // nom -> élément DOM de la bande colorée
+
+function creerBande(nom, classeCss) {
+  const conteneur = document.getElementById("chart-overlay");
+  const div = document.createElement("div");
+  div.className = `bande ${classeCss}`;
+  div.style.display = "none";
+  conteneur.appendChild(div);
+  bandes[nom] = div;
+}
+
+function positionnerBande(nom, prixHaut, prixBas) {
+  const div = bandes[nom];
+  if (prixHaut === null || prixHaut === undefined || prixBas === null || prixBas === undefined) {
+    div.style.display = "none";
+    return;
+  }
+  const yHaut = series.priceToCoordinate(Math.max(prixHaut, prixBas));
+  const yBas = series.priceToCoordinate(Math.min(prixHaut, prixBas));
+  if (yHaut === null || yBas === null) {
+    div.style.display = "none";
+    return;
+  }
+  const largeurEchelle = chart.priceScale("right").width();
+  div.style.display = "block";
+  div.style.top = `${yHaut}px`;
+  div.style.height = `${Math.max(1, yBas - yHaut)}px`;
+  div.style.right = `${largeurEchelle}px`;
+}
+
+function repositionnerToutesLesBandes() {
+  if (!DERNIERES_DONNEES) return;
+  positionnerBande("nuage", DERNIERES_DONNEES.ichimoku.nuage_haut, DERNIERES_DONNEES.ichimoku.nuage_bas);
+  bandes.nuage.classList.toggle("bande-nuage-baissier", DERNIERES_DONNEES.ichimoku.couleur_nuage === "baissier");
+  positionnerBande("opportunite", DERNIERES_DONNEES.zone_opportunite?.haut, DERNIERES_DONNEES.zone_opportunite?.bas);
+  positionnerBande("risque", DERNIERES_DONNEES.zone_risque?.haut, DERNIERES_DONNEES.zone_risque?.bas);
+}
+
+let DERNIERES_DONNEES = null;
 
 function initChart() {
   chart = LightweightCharts.createChart(document.getElementById("chart"), {
@@ -18,9 +57,17 @@ function initChart() {
     wickUpColor: "#3fb950",
     wickDownColor: "#f85149",
   });
+
+  creerBande("nuage", "bande-nuage");
+  creerBande("opportunite", "bande-opportunite");
+  creerBande("risque", "bande-risque");
+
+  chart.timeScale().subscribeVisibleTimeRangeChange(repositionnerToutesLesBandes);
+
   window.addEventListener("resize", () => {
     const el = document.getElementById("chart");
     chart.applyOptions({ width: el.clientWidth, height: el.clientHeight });
+    repositionnerToutesLesBandes();
   });
 }
 
@@ -51,7 +98,7 @@ function ajouterLigneDePrix(prix, titre, couleur) {
 
 function afficherSource(data) {
   const el = document.getElementById("source-badge");
-  const perime = data.perime ? " (pérîmé)" : "";
+  const perime = data.perime ? " (périmé)" : "";
   el.textContent = `Source : ${data.source}${perime} · à jour le ${new Date(data.a_jour_le).toLocaleString("fr-FR")}`;
   el.classList.toggle("perime", !!data.perime);
 }
@@ -74,11 +121,20 @@ function afficherResume(data) {
     ? `Force relative vs BTC : ${data.force_relative_btc.tendance} (${formatNombre(data.force_relative_btc.variation_pct_periode)}% sur 30 bougies)`
     : "";
 
+  const zones = [];
+  if (data.zone_opportunite) {
+    zones.push(`<span class="pastille pastille-opportunite"></span> Zone d'opportunité : ${formatNombre(data.zone_opportunite.bas)}–${formatNombre(data.zone_opportunite.haut)}`);
+  }
+  if (data.zone_risque) {
+    zones.push(`<span class="pastille pastille-risque"></span> Zone de risque : ${formatNombre(data.zone_risque.bas)}–${formatNombre(data.zone_risque.haut)}`);
+  }
+
   el.innerHTML = `
     <details open>
       <summary>Prix et moyennes mobiles</summary>
       <p>Prix actuel : ${formatNombre(data.prix_actuel)}<br>${mm}<br>RSI14 : ${formatNombre(data.rsi14)} · ATR14 : ${formatNombre(data.atr14)}</p>
     </details>
+    ${zones.length ? `<details open><summary>Zones</summary><p>${zones.join("<br>")}</p></details>` : ""}
     <details open>
       <summary>Ichimoku</summary>
       <p>Prix vs nuage : ${data.ichimoku.prix_vs_nuage} · Couleur du nuage : ${data.ichimoku.couleur_nuage}<br>
@@ -95,15 +151,22 @@ function afficherResume(data) {
       <p>${scenarios}</p>
     </details>
     ${forceRelative ? `<p class="force-relative">${forceRelative}</p>` : ""}
-    <p class="disclaimer">Lecture directe des chiffres calculés, pas encore de texte explicatif généré (phase suivante). Régime : prix ${data.regime.prix_vs_mm_longue} de la moyenne mobile longue (pente ${data.regime.pente_mm_longue}), structure ${data.regime.structure}.</p>
+    <p class="disclaimer">Analyse technique automatisée, pas un conseil financier. Lecture directe des chiffres calculés, pas encore de texte explicatif généré (phase suivante). Régime : prix ${data.regime.prix_vs_mm_longue} de la moyenne mobile longue (pente ${data.regime.pente_mm_longue}), structure ${data.regime.structure}.</p>
   `;
+}
+
+function basculerChargement(enCours) {
+  document.getElementById("chart").classList.toggle("chargement", enCours);
+  document.getElementById("resume").classList.toggle("chargement", enCours);
 }
 
 async function chargerAnalyse() {
   const idRequete = ++derniereRequeteId;
   const actifDemande = ETAT.actif;
   const timeframeDemande = ETAT.timeframe;
-  document.getElementById("source-badge").textContent = "Chargement…";
+  document.getElementById("source-badge").textContent = `Chargement de ${actifDemande}…`;
+  document.getElementById("source-badge").classList.remove("perime");
+  basculerChargement(true);
   try {
     const res = await fetch(`/api/analysis/${actifDemande}/${timeframeDemande}`);
     // Une requête plus récente (autre clic entre-temps) a déjà répondu :
@@ -120,6 +183,14 @@ async function chargerAnalyse() {
     const data = await res.json();
     if (idRequete !== derniereRequeteId) return;
 
+    // Zones dérivées des scénarios déjà calculés par le moteur (mêmes
+    // chiffres que la section "Scénarios"), jamais une donnée inventée.
+    const haussier = data.scenarios.find((s) => s.type === "haussier");
+    const baissier = data.scenarios.find((s) => s.type === "baissier");
+    data.zone_opportunite = haussier && haussier.cible !== null ? { haut: haussier.cible, bas: data.prix_actuel } : null;
+    data.zone_risque = baissier && baissier.cible !== null ? { haut: data.prix_actuel, bas: baissier.cible } : null;
+
+    DERNIERES_DONNEES = data;
     series.setData(data.candles);
     chart.timeScale().fitContent();
 
@@ -127,27 +198,25 @@ async function chargerAnalyse() {
     for (const [nom, valeur] of Object.entries(data.moyennes_mobiles)) {
       ajouterLigneDePrix(valeur, nom.toUpperCase(), "#58a6ff");
     }
-    ajouterLigneDePrix(data.ichimoku.nuage_haut, "Nuage haut", "#d29922");
-    ajouterLigneDePrix(data.ichimoku.nuage_bas, "Nuage bas", "#d29922");
     for (const n of data.niveaux) {
-      ajouterLigneDePrix(n.prix_haut, n.type === "nuage" ? "Nuage" : "Niveau", "#8b949e");
+      if (n.type !== "nuage") ajouterLigneDePrix(n.prix_haut, "Niveau", "#8b949e");
     }
 
+    repositionnerToutesLesBandes();
     afficherSource(data);
     afficherResume(data);
   } catch (err) {
     document.getElementById("source-badge").textContent = `Erreur : ${err}`;
     document.getElementById("source-badge").classList.add("perime");
+  } finally {
+    if (idRequete === derniereRequeteId) basculerChargement(false);
   }
 }
 
 function initControles() {
-  document.querySelectorAll("[data-actif]").forEach((bouton) => {
-    bouton.addEventListener("click", () => {
-      ETAT.actif = bouton.dataset.actif;
-      document.querySelectorAll("[data-actif]").forEach((b) => b.classList.toggle("actif", b === bouton));
-      chargerAnalyse();
-    });
+  document.getElementById("selecteur-actif").addEventListener("change", (e) => {
+    ETAT.actif = e.target.value;
+    chargerAnalyse();
   });
   document.querySelectorAll("[data-timeframe]").forEach((bouton) => {
     bouton.addEventListener("click", () => {
@@ -158,8 +227,17 @@ function initControles() {
   });
 }
 
+async function chargerListeActifs() {
+  const res = await fetch("/api/assets");
+  const actifs = await res.json();
+  const select = document.getElementById("selecteur-actif");
+  select.innerHTML = actifs.map((a) => `<option value="${a}">${a}</option>`).join("");
+  select.value = ETAT.actif;
+}
+
 async function main() {
   initChart();
+  await chargerListeActifs();
   initControles();
   await chargerAnalyse();
 }
