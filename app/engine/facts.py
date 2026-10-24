@@ -14,6 +14,8 @@ import pandas as pd
 from app.data.derivatives import get_funding_oi, get_options_context
 from app.data.macro import get_btc_dominance, get_dxy, get_fear_greed, get_sp500
 from app.data.market import get_candles
+from app.data.onchain import get_onchain_metrics
+from app.engine.cycle import get_btc_cycle_channel
 from app.engine.indicators import atr, ema, ichimoku, levels, regime, rsi, scenarios, sma
 from app.engine.relative_strength import relative_strength
 
@@ -116,6 +118,21 @@ def build_facts(asset: str, timeframe: str) -> dict:
         indisponible = {"disponible": False, "raison": "erreur interne"}
         macro = {"fear_greed": indisponible, "dominance_btc": indisponible, "sp500": indisponible, "dxy": indisponible}
 
+    # On-chain et canal de cycle : source centrée BTC uniquement (comme le
+    # reste de la méthode), null pour les autres actifs plutôt qu'une
+    # valeur approximative.
+    onchain = None
+    cycle = None
+    if asset == "BTC":
+        try:
+            onchain = asdict(get_onchain_metrics())
+        except Exception:
+            onchain = {"disponible": False, "raison": "erreur interne"}
+        try:
+            cycle = asdict(get_btc_cycle_channel())
+        except Exception:
+            cycle = {"disponible": False, "raison": "erreur interne"}
+
     return {
         "actif": asset,
         "timeframe": timeframe,
@@ -143,5 +160,7 @@ def build_facts(asset: str, timeframe: str) -> dict:
         "force_relative_btc": force_relative,
         "derives": derives,
         "macro": macro,
+        "onchain": onchain,
+        "cycle": cycle,
         "candles": candles.to_dict(orient="records"),
     }

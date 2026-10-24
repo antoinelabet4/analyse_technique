@@ -25,8 +25,8 @@ d'un résumé (Telegram ou e-mail).
 
 ## État d'avancement
 
-**À faire — 24/10/2026.** Recherche de source on-chain faite,
-clarifications nécessaires avant la spec technique.
+**Fait pour la portée retenue — 24/10/2026.** On-chain, canal de cycle
+et déclenchement n8n codés et testés (voir journal).
 
 ## Critères de validation
 
@@ -46,3 +46,21 @@ clarifications nécessaires avant la spec technique.
   observé sur le SOPR : dernière donnée à J-7 environ (pas temps réel),
   à surveiller. Source communautaire non officielle : pas de garantie
   de pérennité, à documenter comme tel dans l'interface si retenue.
+- **24/10/2026** — Décisions validées par le propriétaire : coût de
+  production abandonné (pas de source fiable, aurait exigé une
+  hypothèse) ; "lignes de tendance de cycle" = canal de régression
+  log-linéaire sur l'historique BTC déjà récupéré ; déclenchement n8n
+  via Telegram (bot déjà existant côté propriétaire).
+- **24/10/2026** — Code livré : `app/data/onchain.py` (SOPR, MVRV,
+  MVRV Z-score, Puell Multiple, cache 6h), `app/engine/cycle.py`
+  (régression log-linéaire + cache 6h sur 1000 bougies hebdo BTC),
+  `app/notifications/telegram.py`, `app/engine/daily_summary.py`,
+  `POST /api/daily-trigger` protégé par `X-Trigger-Token` (comparaison
+  à temps constant). Variables d'environnement ajoutées à
+  `.env.example` (`N8N_TRIGGER_TOKEN`, `TELEGRAM_BOT_TOKEN`,
+  `TELEGRAM_CHAT_ID`), jamais de vraie valeur commise. Vérifié en
+  conditions réelles : on-chain et cycle alimentent bien
+  `/api/analysis/BTC/1d`, `/api/daily-trigger` refuse sans le bon
+  token. Envoi Telegram réel non testé (pas de bot configuré dans ce
+  sandbox) : à faire une fois les variables renseignées sur le mini
+  PC. 116 tests passent.
