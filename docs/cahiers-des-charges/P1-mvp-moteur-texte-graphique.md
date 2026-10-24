@@ -92,3 +92,33 @@ faire : texte explicatif LLM avec contrôle automatique.
   des données périmées (ETH affiché avec les MM 1D au lieu de l'EMA200
   1W). Corrigé par un identifiant de requête qui ignore toute réponse
   devenue obsolète. 63 tests passent.
+- **24/10/2026** — Itération interface suite au premier test réel sur le
+  mini PC (déploiement Coolify + accès Tailscale confirmés fonctionnels) :
+  - Ce qui semblait être un bug d'échelle qui ne se mettait pas à jour
+    entre actifs était en fait l'absence d'indicateur de chargement
+    pendant l'appel réseau réel à Binance (quelques secondes) : ajout
+    d'un état de chargement visible (graphique assombri, badge "Chargement
+    de X…").
+  - Nuage Ichimoku et niveaux affichés comme de vraies bandes colorées
+    remplies (overlay positionné via `priceToCoordinate`, resynchronisé au
+    zoom/pan et au redimensionnement), plus seulement des lignes
+    horizontales.
+  - Ajout de **zones d'opportunité et de risque** sur le graphique,
+    demandées par le propriétaire. Point de vigilance soulevé par l'agent
+    avant implémentation : le brief interdit tout "conseil d'achat ou de
+    vente". Le propriétaire a tranché le 24/10/2026 : reformulation sans
+    ces mots ("Zone d'opportunité" / "Zone de risque"), dérivées des
+    cibles déjà calculées par les scénarios haussier/baissier existants
+    (mêmes chiffres que la section Scénarios, aucune donnée nouvelle
+    inventée).
+  - Sélecteur d'actif remplacé par un menu déroulant (anticipe l'ajout de
+    tous les actifs disponibles sur TradingView, hors périmètre pour
+    l'instant).
+  - Toute mention de Vincent Ganne retirée de l'interface (sur demande
+    explicite), disclaimer reformulé : "Analyse technique automatisée,
+    générée automatiquement. Ce n'est pas un conseil financier."
+  - Passe de design pour un rendu plus "app" (en-tête collant, cartes
+    arrondies, select natif stylé, transitions douces).
+  - Vérifié dans un vrai navigateur (chargement, bascule d'actif avec
+    zoom/pan, positionnement des bandes). 63 tests toujours verts (aucun
+    changement backend).

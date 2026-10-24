@@ -1,14 +1,19 @@
 :root {
-  --bg: #0d1117;
-  --fg: #e6edf3;
-  --muted: #8b949e;
-  --accent: #2f81f7;
-  --banner-bg: #2d2a1a;
-  --banner-fg: #e3b341;
+  --bg: #0b0e14;
+  --surface: #151a23;
+  --surface-2: #1c2330;
+  --border: #2a3344;
+  --fg: #eef2f7;
+  --muted: #8b95a7;
+  --accent: #3b82f6;
+  --vert: #22c55e;
+  --rouge: #ef4444;
+  --banner-fg: #f0b429;
 }
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html, body {
@@ -21,21 +26,29 @@ html, body {
 }
 
 header {
-  padding: 0.75rem 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: rgba(11, 14, 20, 0.92);
+  backdrop-filter: blur(8px);
+  padding: 0.9rem 1rem 0.6rem;
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.4rem;
+  border-bottom: 1px solid var(--border);
 }
 
 header h1 {
-  font-size: 1.1rem;
+  font-size: 1.15rem;
+  font-weight: 700;
   margin: 0;
+  letter-spacing: -0.01em;
 }
 
 header span {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 
@@ -43,99 +56,205 @@ header span {
   color: var(--banner-fg);
 }
 
-.demo-banner {
-  background: var(--banner-bg);
-  color: var(--banner-fg);
-  text-align: center;
-  font-size: 0.8rem;
-  padding: 0.4rem 0.75rem;
-}
-
 .selecteurs {
-  padding: 0 1rem 0.5rem;
+  padding: 0.75rem 1rem 0.5rem;
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.6rem;
+  align-items: stretch;
 }
 
-.chips {
-  display: flex;
-  gap: 0.4rem;
-  overflow-x: auto;
-}
-
-.chips button,
-.timeframe button {
-  background: #161b22;
+#selecteur-actif {
+  flex: 1;
+  background: var(--surface);
   color: var(--fg);
-  border: 1px solid #30363d;
-  border-radius: 999px;
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-  white-space: nowrap;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.7rem 0.9rem;
+  font-size: 1rem;
+  font-weight: 600;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b95a7' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.8rem center;
+  background-size: 1.1rem;
 }
 
 .timeframe {
   display: flex;
   gap: 0.4rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.25rem;
 }
 
 .timeframe button {
+  background: transparent;
+  color: var(--muted);
+  border: none;
   flex: 1;
-  border-radius: 8px;
-  padding: 0.75rem;
-  font-weight: 600;
+  border-radius: 9px;
+  padding: 0.5rem 0.9rem;
+  font-weight: 700;
+  font-size: 0.9rem;
 }
 
-.chips button.actif,
 .timeframe button.actif {
   background: var(--accent);
-  border-color: var(--accent);
   color: white;
+}
+
+.legende-zones {
+  display: flex;
+  gap: 1rem;
+  padding: 0 1rem 0.6rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.legende-zones span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.pastille {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+}
+
+.pastille-opportunite {
+  background: var(--vert);
+}
+
+.pastille-risque {
+  background: var(--rouge);
+}
+
+.pastille-nuage {
+  background: var(--banner-fg);
+}
+
+#chart-wrapper {
+  position: relative;
+  margin: 0 1rem;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface);
 }
 
 #chart {
   width: 100%;
-  height: 50vh;
+  height: 48vh;
   touch-action: none;
+  transition: opacity 0.15s ease;
+}
+
+#chart.chargement {
+  opacity: 0.4;
+}
+
+#chart-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bande {
+  position: absolute;
+  left: 0;
+  border-radius: 2px;
+}
+
+.bande-nuage {
+  background: rgba(240, 180, 41, 0.14);
+  border-top: 1px solid rgba(240, 180, 41, 0.5);
+  border-bottom: 1px solid rgba(240, 180, 41, 0.5);
+}
+
+.bande-nuage.bande-nuage-baissier {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.bande-opportunite {
+  background: rgba(34, 197, 94, 0.12);
+  border-top: 1px dashed rgba(34, 197, 94, 0.5);
+}
+
+.bande-risque {
+  background: rgba(239, 68, 68, 0.12);
+  border-bottom: 1px dashed rgba(239, 68, 68, 0.5);
 }
 
 #resume {
-  padding: 0.5rem 1rem 1rem;
+  padding: 0.75rem 1rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  transition: opacity 0.15s ease;
+}
+
+#resume.chargement {
+  opacity: 0.5;
 }
 
 #resume details {
-  margin-bottom: 0.5rem;
-  border: 1px solid #30363d;
-  border-radius: 8px;
-  padding: 0.5rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.7rem 0.9rem;
 }
 
 #resume summary {
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 0.9rem;
   cursor: pointer;
+  list-style: none;
+}
+
+#resume summary::-webkit-details-marker {
+  display: none;
+}
+
+#resume summary::after {
+  content: "›";
+  float: right;
+  transform: rotate(90deg);
+  transition: transform 0.15s ease;
+  color: var(--muted);
+}
+
+#resume details[open] summary::after {
+  transform: rotate(270deg);
 }
 
 #resume p {
   font-size: 0.85rem;
-  line-height: 1.5;
+  line-height: 1.6;
   color: var(--fg);
+  margin: 0.5rem 0 0;
 }
 
 #resume .force-relative {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--muted);
+  padding: 0 0.2rem;
 }
 
 #resume .disclaimer {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--muted);
   font-style: italic;
+  padding: 0 0.2rem;
 }
 
 footer {
   text-align: center;
   font-size: 0.7rem;
   color: var(--muted);
-  padding: 0.5rem;
+  padding: 1rem 1.5rem 2rem;
 }
