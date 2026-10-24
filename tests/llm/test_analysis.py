@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from app.llm import analysis as analysis_module
-from app.llm.analysis import DebitDepasse, PlafondAtteint, TexteNonFiable, generer_analyse
+from app.llm.analysis import DebitDepasse, PlafondAtteint, TexteNonFiable, _facts_pour_prompt, generer_analyse
 
 TEXTE_VALIDE = {
     "tendance": "Prix à 100 au-dessus de la MM200 à 90.",
@@ -24,6 +24,23 @@ def _facts():
         "niveaux": [{"prix_haut": 110.0, "prix_bas": 108.0}],
         "atr14": 2.0,
     }
+
+
+def test_facts_pour_prompt_retire_les_series_volumineuses():
+    facts = _facts()
+    facts["ichimoku"] = {"tenkan": 100.0, "nuage_serie": [{"time": "2026-01-01", "senkou_a": 1.0, "senkou_b": 2.0}]}
+
+    reduit = _facts_pour_prompt(facts)
+
+    assert "candles" not in reduit
+    assert "nuage_serie" not in reduit["ichimoku"]
+    # Les valeurs résumées, elles, restent présentes pour le texte explicatif.
+    assert reduit["ichimoku"]["tenkan"] == 100.0
+    assert reduit["prix_actuel"] == facts["prix_actuel"]
+    assert reduit["moyennes_mobiles"] == facts["moyennes_mobiles"]
+    # La fonction ne modifie pas le dict d'origine (toujours utilisé pour
+    # la clé de cache et le contrôle des chiffres).
+    assert "candles" in facts
 
 
 def test_premier_appel_interroge_le_llm_et_met_en_cache(tmp_path: Path, monkeypatch):

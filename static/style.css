@@ -264,6 +264,8 @@ body.plein-ecran-graphique .bouton-fermer-plein-ecran {
 body.plein-ecran-graphique header,
 body.plein-ecran-graphique .selecteurs,
 body.plein-ecran-graphique .legende-zones,
+body.plein-ecran-graphique .periode-affichee,
+body.plein-ecran-graphique #bouton-analyse,
 body.plein-ecran-graphique #analyse-llm,
 body.plein-ecran-graphique #resume,
 body.plein-ecran-graphique footer {
@@ -293,20 +295,41 @@ body.plein-ecran-graphique footer {
   pointer-events: none;
 }
 
-.bouton-analyse {
-  position: absolute;
-  left: 50%;
-  bottom: 0.75rem;
-  transform: translateX(-50%);
-  z-index: 3;
-  background: var(--surface-2);
+.periode-affichee {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.6rem 1rem 0;
+  overflow-x: auto;
+}
+
+.periode-affichee button {
+  background: var(--surface);
   color: var(--muted);
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 0.6rem 1.3rem;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.periode-affichee button.actif {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.bouton-analyse {
+  display: block;
+  width: calc(100% - 2rem);
+  margin: 0.9rem 1rem 0;
+  background: var(--surface-2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem 1.3rem;
   font-weight: 700;
-  font-size: 0.85rem;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  font-size: 0.9rem;
 }
 
 .bouton-analyse.chargement-llm {

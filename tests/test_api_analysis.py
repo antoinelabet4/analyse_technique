@@ -43,7 +43,7 @@ def _candles_result(days: int = 90) -> CandlesResult:
 
 
 def test_api_analysis_btc_1d_has_no_force_relative(monkeypatch):
-    monkeypatch.setattr(facts_module, "get_candles", lambda asset, timeframe: _candles_result())
+    monkeypatch.setattr(facts_module, "get_candles", lambda asset, timeframe, limit=300: _candles_result())
     resp = client.get("/api/analysis/BTC/1d")
     assert resp.status_code == 200
     data = resp.json()
@@ -58,7 +58,7 @@ def test_api_analysis_btc_1d_has_no_force_relative(monkeypatch):
 
 
 def test_api_analysis_alt_includes_force_relative(monkeypatch):
-    monkeypatch.setattr(facts_module, "get_candles", lambda asset, timeframe: _candles_result())
+    monkeypatch.setattr(facts_module, "get_candles", lambda asset, timeframe, limit=300: _candles_result())
     resp = client.get("/api/analysis/ETH/1d")
     assert resp.status_code == 200
     data = resp.json()
@@ -78,7 +78,7 @@ def test_api_analysis_rejects_unknown_timeframe():
 
 
 def test_api_analysis_returns_503_when_source_unavailable(monkeypatch):
-    def boom(asset, timeframe):
+    def boom(asset, timeframe, limit=300):
         raise SourceUnavailable("down")
 
     monkeypatch.setattr(facts_module, "get_candles", boom)

@@ -55,8 +55,18 @@
     <div id="chart"></div>
     <svg id="nuage-svg"></svg>
     <div id="chart-overlay"></div>
-    <button id="bouton-analyse" class="bouton-analyse">Lancer l'analyse</button>
   </div>
+
+  <div class="periode-affichee" id="periode-affichee">
+    <button data-periode="1m">1M</button>
+    <button data-periode="3m">3M</button>
+    <button data-periode="6m">6M</button>
+    <button data-periode="ytd">YTD</button>
+    <button data-periode="1y">1Y</button>
+    <button data-periode="tout" class="actif">Tout</button>
+  </div>
+
+  <button id="bouton-analyse" class="bouton-analyse">Lancer l'analyse</button>
 
   <div id="analyse-llm"></div>
   <div id="resume"></div>

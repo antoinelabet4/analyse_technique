@@ -1,4 +1,5 @@
-const ETAT = { actif: "BTC", timeframe: "1d" };
+const ETAT = { actif: "BTC", timeframe: "1d", periode: "tout" };
+const PERIODES_EN_JOURS = { "1m": 30, "3m": 90, "6m": 180, "1y": 365 };
 let chart, series;
 let derniereRequeteId = 0;
 let bandes = {}; // nom -> élément DOM de la bande colorée
@@ -338,7 +339,10 @@ async function chargerAnalyse() {
     viderLignesDePrix();
     DERNIERES_DONNEES = data;
     series.setData(data.candles);
-    chart.timeScale().fitContent();
+    // Applique la durée affichée déjà sélectionnée (1M/3M/.../Tout) : un
+    // changement d'actif ou de timeframe ne doit pas réinitialiser le
+    // zoom choisi par le propriétaire.
+    definirPeriodeAffichee(ETAT.periode);
 
     redessinerIndicateurs();
     afficherSource(data);
@@ -458,6 +462,42 @@ function initPleinEcran() {
   });
 }
 
+function definirPeriodeAffichee(periode) {
+  if (!chart) return;
+  if (periode === "tout") {
+    chart.timeScale().fitContent();
+    return;
+  }
+  // Zoom purement côté client sur les bougies déjà chargées (jusqu'à 1000
+  // par appel, voir build_facts) : aucun nouvel appel réseau par clic.
+  if (!DERNIERES_DONNEES || !DERNIERES_DONNEES.candles.length) return;
+  const candles = DERNIERES_DONNEES.candles;
+  const premiere = candles[0].time;
+  const to = candles[candles.length - 1].time;
+  const dateTo = new Date(`${to}T00:00:00Z`);
+  let dateFrom;
+  if (periode === "ytd") {
+    dateFrom = new Date(Date.UTC(dateTo.getUTCFullYear(), 0, 1));
+  } else {
+    const jours = PERIODES_EN_JOURS[periode];
+    if (!jours) return; // valeur inconnue, ne jamais deviner une plage
+    dateFrom = new Date(dateTo);
+    dateFrom.setUTCDate(dateFrom.getUTCDate() - jours);
+  }
+  const from = dateFrom.toISOString().slice(0, 10);
+  chart.timeScale().setVisibleRange({ from: from < premiere ? premiere : from, to });
+}
+
+function initPeriodeAffichee() {
+  document.querySelectorAll("[data-periode]").forEach((bouton) => {
+    bouton.addEventListener("click", () => {
+      ETAT.periode = bouton.dataset.periode;
+      document.querySelectorAll("[data-periode]").forEach((b) => b.classList.toggle("actif", b === bouton));
+      definirPeriodeAffichee(ETAT.periode);
+    });
+  });
+}
+
 function initControles() {
   document.getElementById("bouton-analyse").addEventListener("click", lancerAnalyseLLM);
   document.getElementById("selecteur-actif").addEventListener("change", (e) => {
@@ -473,6 +513,7 @@ function initControles() {
   });
   initMenuIndicateurs();
   initPleinEcran();
+  initPeriodeAffichee();
   window.addEventListener("orientationchange", () => setTimeout(redimensionnerChart, 100));
 }
 

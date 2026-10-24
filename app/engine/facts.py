@@ -44,8 +44,12 @@ def _level_to_dict(level) -> dict:
     return d
 
 
-def build_facts(asset: str, timeframe: str) -> dict:
-    resultat_marche = get_candles(asset, timeframe)
+def build_facts(asset: str, timeframe: str, candles_limit: int = 1000) -> dict:
+    """`candles_limit` élevé par défaut (1000, le maximum par appel Binance)
+    pour que le graphique ait assez d'historique pour les boutons de durée
+    (1M/3M/6M/YTD/1Y/Tout) sans rappel réseau à chaque clic — ceux-ci ne
+    font que zoomer sur les données déjà chargées, côté client."""
+    resultat_marche = get_candles(asset, timeframe, limit=candles_limit)
     candles = _candles_to_df(resultat_marche.candles)
     closes = candles["close"]
 
