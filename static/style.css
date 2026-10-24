@@ -39,6 +39,10 @@ header span {
   color: var(--muted);
 }
 
+#source-badge.perime {
+  color: var(--banner-fg);
+}
+
 .demo-banner {
   background: var(--banner-bg);
   color: var(--banner-fg);
@@ -47,10 +51,86 @@ header span {
   padding: 0.4rem 0.75rem;
 }
 
+.selecteurs {
+  padding: 0 1rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.chips {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+}
+
+.chips button,
+.timeframe button {
+  background: #161b22;
+  color: var(--fg);
+  border: 1px solid #30363d;
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.timeframe {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.timeframe button {
+  flex: 1;
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-weight: 600;
+}
+
+.chips button.actif,
+.timeframe button.actif {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
 #chart {
   width: 100%;
-  height: calc(100vh - 110px);
+  height: 50vh;
   touch-action: none;
+}
+
+#resume {
+  padding: 0.5rem 1rem 1rem;
+}
+
+#resume details {
+  margin-bottom: 0.5rem;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+}
+
+#resume summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#resume p {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--fg);
+}
+
+#resume .force-relative {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+#resume .disclaimer {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-style: italic;
 }
 
 footer {

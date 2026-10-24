@@ -25,11 +25,11 @@ déterministe, sans aucun chiffre inventé.
 
 ## État d'avancement
 
-**En cours — 23/10/2026.** Moteur d'indicateurs/niveaux/régime/scénarios
-et récupération de données réelles (Binance + fallback Kraken + cache
-SQLite) codés et testés (voir journal). Restent à faire : force relative
-alts vs BTC, texte explicatif LLM avec contrôle automatique, wiring vers
-l'API et le graphique.
+**En cours — 24/10/2026.** Moteur d'indicateurs/niveaux/régime/scénarios,
+récupération de données réelles (Binance + fallback Kraken + cache
+SQLite), force relative vs BTC, et câblage API + graphique mobile codés,
+testés et vérifiés dans un vrai navigateur (voir journal). Reste à
+faire : texte explicatif LLM avec contrôle automatique.
 
 ## Critères de validation
 
@@ -77,3 +77,18 @@ l'API et le graphique.
   bougie n'a clôturé" du brief d'origine est reportée à la couche de
   cache des analyses (pas encore spécifiée), ce module privilégiant
   toujours une donnée fraîche quand une source répond (voir spec).
+- **24/10/2026** — Force relative vs BTC (`app/engine/relative_strength.py`,
+  ratio actif/BTC sur 30 bougies), assemblage du JSON "facts"
+  (`app/engine/facts.py`) et endpoints API (`/api/assets`,
+  `/api/analysis/{actif}/{timeframe}`) codés. Interface mobile mise à
+  jour : sélecteur d'actif, bascule 1D/1W, chandeliers réels, niveaux de
+  prix (MM/EMA, nuage, supports/résistances) en overlay, résumé en
+  sections repliables à partir des chiffres bruts (pas de texte LLM
+  encore). Vérifié dans un vrai navigateur (Chromium headless, viewport
+  mobile 390×844) : capture d'écran BTC/1D et ETH/1W conformes.
+  **Bug trouvé et corrigé pendant cette vérification** : un clic rapide
+  sur un actif puis un timeframe lançait deux requêtes concurrentes ; si
+  la première répondait après la seconde, elle écrasait l'affichage avec
+  des données périmées (ETH affiché avec les MM 1D au lieu de l'EMA200
+  1W). Corrigé par un identifiant de requête qui ignore toute réponse
+  devenue obsolète. 63 tests passent.
