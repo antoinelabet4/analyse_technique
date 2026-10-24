@@ -400,7 +400,18 @@ async function chargerListeActifs() {
   select.value = ETAT.actif;
 }
 
+function enregistrerServiceWorker() {
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      // Installabilité PWA en moins sur ce navigateur, pas bloquant pour
+      // le reste de l'app (ex. Safari iOS avant 16.4, ou contexte non
+      // sécurisé en développement local).
+    });
+  }
+}
+
 async function main() {
+  enregistrerServiceWorker();
   initChart();
   await chargerListeActifs();
   initControles();

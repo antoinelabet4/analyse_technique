@@ -82,4 +82,17 @@ def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/manifest.json")
+def manifest() -> FileResponse:
+    return FileResponse(STATIC_DIR / "manifest.json")
+
+
+@app.get("/sw.js")
+def service_worker() -> FileResponse:
+    # Servi depuis la racine (pas /static/) pour que sa portée par défaut
+    # couvre toute l'app ("/"), condition requise pour l'installabilité
+    # PWA (Chrome/Android notamment).
+    return FileResponse(STATIC_DIR / "sw.js", media_type="application/javascript")
+
+
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

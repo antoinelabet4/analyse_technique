@@ -1,0 +1,16 @@
+{
+  "name": "Analyse technique crypto",
+  "short_name": "Analyse crypto",
+  "description": "Analyse technique automatisée (indicateurs, niveaux, Ichimoku) pour BTC, ETH, XRP, TAO et RENDER. Pas un conseil financier.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0e14",
+  "theme_color": "#0b0e14",
+  "icons": [
+    { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/static/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
