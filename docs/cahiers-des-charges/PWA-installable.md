@@ -34,9 +34,8 @@ propriétaire (24/10/2026).
 - [x] Balises Apple (`apple-mobile-web-app-capable`,
       `apple-touch-icon`, etc.) présentes pour Safari iOS, cas d'usage
       réel du propriétaire.
-- [ ] Installation réelle "Ajouter à l'écran d'accueil" testée sur
-      l'iPhone du propriétaire — à faire de son côté, pas vérifiable
-      depuis cet environnement.
+- [x] Installation réelle "Ajouter à l'écran d'accueil" testée sur
+      l'iPhone du propriétaire, confirmée fonctionnelle le 24/10/2026.
 
 ## Journal
 
