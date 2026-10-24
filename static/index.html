@@ -7,14 +7,29 @@
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <div class="demo-banner">
-    P0 — squelette de test : ces chandeliers sont des données de démonstration figées, pas une donnée de marché réelle.
-  </div>
   <header>
     <h1>Analyse technique crypto</h1>
-    <span>Chart by TradingView Lightweight Charts</span>
+    <span id="source-badge">Chargement…</span>
   </header>
+
+  <div class="selecteurs">
+    <div class="chips" id="actifs">
+      <button data-actif="BTC" class="actif">BTC</button>
+      <button data-actif="ETH">ETH</button>
+      <button data-actif="XRP">XRP</button>
+      <button data-actif="TAO">TAO</button>
+      <button data-actif="RENDER">RENDER</button>
+    </div>
+    <div class="timeframe">
+      <button data-timeframe="1d" class="actif">1D</button>
+      <button data-timeframe="1w">1W</button>
+    </div>
+  </div>
+
   <div id="chart"></div>
+
+  <div id="resume"></div>
+
   <footer>
     Analyse automatisée inspirée de la méthode publique de V. Ganne ; ce n'est pas une analyse de V. Ganne ni un conseil financier.
   </footer>
