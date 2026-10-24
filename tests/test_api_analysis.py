@@ -55,6 +55,13 @@ def test_api_analysis_btc_1d_has_no_force_relative(monkeypatch):
     assert set(point.keys()) == {"time", "senkou_a", "senkou_b"}
     assert data["derives"]["funding_oi"]["disponible"] is False
     assert data["macro"]["fear_greed"]["disponible"] is False
+    # Les moyennes mobiles sont fournies en courbe complète (pas seulement
+    # la valeur actuelle) pour être tracées comme une vraie ligne sur le
+    # graphique, pas juste un niveau fixe.
+    assert set(data["moyennes_mobiles_serie"].keys()) == {"mm50", "mm200"}
+    assert len(data["moyennes_mobiles_serie"]["mm50"]) > 0
+    point = data["moyennes_mobiles_serie"]["mm50"][0]
+    assert set(point.keys()) == {"time", "valeur"}
 
 
 def test_api_analysis_alt_includes_force_relative(monkeypatch):

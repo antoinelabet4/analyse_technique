@@ -3,6 +3,8 @@ const PERIODES_EN_JOURS = { "1m": 30, "3m": 90, "6m": 180, "1y": 365 };
 let chart, series;
 let derniereRequeteId = 0;
 let bandes = {}; // nom -> élément DOM de la bande colorée
+let lignesMM = {}; // nom (mm50/mm200/ema200) -> série LightweightCharts
+const COULEURS_MM = { mm50: "#58a6ff", mm200: "#f0b429", ema200: "#f0b429" };
 
 function chargerIndicateursVisibles() {
   const defaut = { mm: true, nuage: true, niveaux: true, zones: true };
@@ -117,14 +119,35 @@ function repositionnerToutesLesBandes() {
   }
 }
 
+function viderCourbesMM() {
+  for (const serie of Object.values(lignesMM)) {
+    chart.removeSeries(serie);
+  }
+  lignesMM = {};
+}
+
+function dessinerCourbesMM() {
+  viderCourbesMM();
+  if (!INDICATEURS_VISIBLES.mm || !DERNIERES_DONNEES?.moyennes_mobiles_serie) return;
+  for (const [nom, points] of Object.entries(DERNIERES_DONNEES.moyennes_mobiles_serie)) {
+    if (!points.length) continue;
+    const ligneSerie = chart.addSeries(LightweightCharts.LineSeries, {
+      color: COULEURS_MM[nom] || "#8b949e",
+      lineWidth: 1,
+      title: nom.toUpperCase(),
+      priceLineVisible: false,
+      crosshairMarkerVisible: false,
+      lastValueVisible: true,
+    });
+    ligneSerie.setData(points.map((p) => ({ time: p.time, value: p.valeur })));
+    lignesMM[nom] = ligneSerie;
+  }
+}
+
 function redessinerIndicateurs() {
   if (!DERNIERES_DONNEES) return;
   viderLignesDePrix();
-  if (INDICATEURS_VISIBLES.mm) {
-    for (const [nom, valeur] of Object.entries(DERNIERES_DONNEES.moyennes_mobiles)) {
-      ajouterLigneDePrix(valeur, nom.toUpperCase(), "#58a6ff");
-    }
-  }
+  dessinerCourbesMM();
   if (INDICATEURS_VISIBLES.niveaux) {
     for (const n of DERNIERES_DONNEES.niveaux) {
       if (n.type !== "nuage") ajouterLigneDePrix(n.prix_haut, "Niveau", "#8b949e");
@@ -337,6 +360,7 @@ async function chargerAnalyse() {
     // (bug trouvé le 24/10/2026 : l'échelle restait bloquée sur celle de
     // l'actif précédent, ex. BTC, après un changement d'actif vers ETH).
     viderLignesDePrix();
+    viderCourbesMM();
     DERNIERES_DONNEES = data;
     series.setData(data.candles);
     // Applique la durée affichée déjà sélectionnée (1M/3M/.../Tout) : un

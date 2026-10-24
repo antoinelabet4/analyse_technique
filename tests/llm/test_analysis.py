@@ -21,6 +21,7 @@ def _facts():
         "candles": [{"time": "2026-01-01"}, {"time": "2026-01-02"}],
         "prix_actuel": 100.0,
         "moyennes_mobiles": {"mm200": 90.0},
+        "moyennes_mobiles_serie": {"mm200": [{"time": "2026-01-01", "valeur": 88.0}]},
         "niveaux": [{"prix_haut": 110.0, "prix_bas": 108.0}],
         "atr14": 2.0,
     }
@@ -33,6 +34,7 @@ def test_facts_pour_prompt_retire_les_series_volumineuses():
     reduit = _facts_pour_prompt(facts)
 
     assert "candles" not in reduit
+    assert "moyennes_mobiles_serie" not in reduit
     assert "nuage_serie" not in reduit["ichimoku"]
     # Les valeurs résumées, elles, restent présentes pour le texte explicatif.
     assert reduit["ichimoku"]["tenkan"] == 100.0

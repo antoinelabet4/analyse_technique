@@ -140,10 +140,11 @@ def _ecrire_cache(conn: sqlite3.Connection, asset: str, timeframe: str, derniere
 
 
 def _facts_pour_prompt(facts: dict) -> dict:
-    """Retire les séries volumineuses (bougies, série du nuage) inutiles au
-    texte qualitatif : réduit le coût par appel sans retirer aucune valeur
-    résumée (prix, indicateurs, niveaux, scénarios...) dont dispose le LLM."""
-    reduit = {k: v for k, v in facts.items() if k != "candles"}
+    """Retire les séries volumineuses (bougies, série du nuage, série des
+    moyennes mobiles) inutiles au texte qualitatif : réduit le coût par
+    appel sans retirer aucune valeur résumée (prix, indicateurs, niveaux,
+    scénarios...) dont dispose le LLM."""
+    reduit = {k: v for k, v in facts.items() if k not in ("candles", "moyennes_mobiles_serie")}
     if isinstance(reduit.get("ichimoku"), dict):
         reduit["ichimoku"] = {k: v for k, v in reduit["ichimoku"].items() if k != "nuage_serie"}
     return reduit

@@ -49,3 +49,18 @@ orientation paysage) pour mieux le lire.
   masquage/affichage des indicateurs, plein écran et retour, rendu en
   viewport paysage. 116 tests backend toujours verts (aucun changement
   backend sur ce lot).
+- **24/10/2026 (correctif)** — Les moyennes mobiles (MM50/MM200/EMA200)
+  étaient affichées comme une ligne de prix fixe (valeur actuelle
+  uniquement), pas comme une vraie courbe suivant le prix dans le temps.
+  Demande explicite du propriétaire : `build_facts` calcule et renvoie
+  maintenant la série complète (`moyennes_mobiles_serie`), tracée côté
+  client en `LightweightCharts.LineSeries` (une par moyenne mobile),
+  recréée à chaque rechargement de données comme les lignes de prix des
+  niveaux (même correctif d'ordre que le bug d'échelle du 24/10/2026 :
+  les anciennes courbes sont retirées avant le `setData()` du nouvel
+  actif, jamais après). Vérifié visuellement (courbes bleue/orange
+  suivant le prix sur BTC, masquage via la case à cocher, changement
+  d'actif BTC→ETH sans courbe résiduelle ni erreur JS) et par test
+  (`tests/test_api_analysis.py`, `tests/llm/test_analysis.py` pour
+  confirmer que la série n'est pas envoyée au LLM). 117 tests backend
+  toujours verts.
