@@ -180,20 +180,24 @@ function afficherResume(data) {
     ? `Force relative vs BTC : ${data.force_relative_btc.tendance} (${formatNombre(data.force_relative_btc.variation_pct_periode)}% sur 30 bougies)`
     : "";
 
-  const zones = [];
-  if (data.zone_opportunite) {
-    zones.push(`<span class="pastille pastille-opportunite"></span> Zone d'opportunité : ${formatNombre(data.zone_opportunite.bas)}–${formatNombre(data.zone_opportunite.haut)}`);
-  }
-  if (data.zone_risque) {
-    zones.push(`<span class="pastille pastille-risque"></span> Zone de risque : ${formatNombre(data.zone_risque.bas)}–${formatNombre(data.zone_risque.haut)}`);
-  }
+  // Toujours afficher les deux zones, y compris quand aucune n'est
+  // identifiée : le dire explicitement plutôt que de masquer la section
+  // en silence (demande explicite du propriétaire, 24/10/2026).
+  const zones = [
+    data.zone_opportunite
+      ? `<span class="pastille pastille-opportunite"></span> Zone d'opportunité : ${formatNombre(data.zone_opportunite.bas)}–${formatNombre(data.zone_opportunite.haut)}`
+      : `<span class="pastille pastille-opportunite"></span> Zone d'opportunité : aucune résistance identifiée au-dessus du prix actuel`,
+    data.zone_risque
+      ? `<span class="pastille pastille-risque"></span> Zone de risque : ${formatNombre(data.zone_risque.bas)}–${formatNombre(data.zone_risque.haut)}`
+      : `<span class="pastille pastille-risque"></span> Zone de risque : aucun support identifié en dessous du prix actuel`,
+  ];
 
   el.innerHTML = `
     <details open>
       <summary>Prix et moyennes mobiles</summary>
       <p>Prix actuel : ${formatNombre(data.prix_actuel)}<br>${mm}<br>RSI14 : ${formatNombre(data.rsi14)} · ATR14 : ${formatNombre(data.atr14)}</p>
     </details>
-    ${zones.length ? `<details open><summary>Zones</summary><p>${zones.join("<br>")}</p></details>` : ""}
+    <details open><summary>Zones</summary><p>${zones.join("<br>")}</p></details>
     <details open>
       <summary>Ichimoku</summary>
       <p>Prix vs nuage : ${data.ichimoku.prix_vs_nuage} · Couleur du nuage : ${data.ichimoku.couleur_nuage}<br>
