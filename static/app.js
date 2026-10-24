@@ -31,10 +31,61 @@ function positionnerBande(nom, prixHaut, prixBas) {
   div.style.right = `${largeurEchelle}px`;
 }
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function dessinerNuage() {
+  const svg = document.getElementById("nuage-svg");
+  const serie = DERNIERES_DONNEES?.ichimoku?.nuage_serie;
+  svg.innerHTML = "";
+  if (!serie || serie.length < 2) return;
+
+  // Projette chaque point en pixels, avec le haut/bas réel du nuage à cet
+  // instant (senkou_a vs senkou_b peuvent s'inverser).
+  const points = serie
+    .map((p) => {
+      const x = chart.timeScale().timeToCoordinate(p.time);
+      const yA = series.priceToCoordinate(p.senkou_a);
+      const yB = series.priceToCoordinate(p.senkou_b);
+      if (x === null || yA === null || yB === null) return null;
+      return { x, yHaut: Math.min(yA, yB), yBas: Math.max(yA, yB), haussier: p.senkou_a >= p.senkou_b };
+    })
+    .filter(Boolean);
+  if (points.length < 2) return;
+
+  // Un seul polygone par tronçon de couleur constante (plutôt qu'un
+  // quadrilatère par paire de bougies) : évite les liserés
+  // d'anti-aliasing entre des centaines de polygones adjacents d'un
+  // pixel de large, et reproduit un vrai ruban continu comme sur
+  // TradingView/Binance Academy.
+  let troncon = [points[0]];
+  function dessinerTroncon(troncon) {
+    if (troncon.length < 2) return;
+    const haut = troncon.map((p) => `${p.x},${p.yHaut}`).join(" ");
+    const bas = troncon.slice().reverse().map((p) => `${p.x},${p.yBas}`).join(" ");
+    const polygone = document.createElementNS(SVG_NS, "polygon");
+    polygone.setAttribute("points", `${haut} ${bas}`);
+    const haussier = troncon[0].haussier;
+    polygone.setAttribute("fill", haussier ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)");
+    polygone.setAttribute("stroke", haussier ? "rgba(34,197,94,0.6)" : "rgba(239,68,68,0.6)");
+    polygone.setAttribute("stroke-width", "1");
+    svg.appendChild(polygone);
+  }
+
+  for (let i = 1; i < points.length; i++) {
+    if (points[i].haussier !== troncon[troncon.length - 1].haussier) {
+      troncon.push(points[i]); // point de jonction partagé pour ne pas laisser de trou
+      dessinerTroncon(troncon);
+      troncon = [points[i]];
+    } else {
+      troncon.push(points[i]);
+    }
+  }
+  dessinerTroncon(troncon);
+}
+
 function repositionnerToutesLesBandes() {
   if (!DERNIERES_DONNEES) return;
-  positionnerBande("nuage", DERNIERES_DONNEES.ichimoku.nuage_haut, DERNIERES_DONNEES.ichimoku.nuage_bas);
-  bandes.nuage.classList.toggle("bande-nuage-baissier", DERNIERES_DONNEES.ichimoku.couleur_nuage === "baissier");
+  dessinerNuage();
   positionnerBande("opportunite", DERNIERES_DONNEES.zone_opportunite?.haut, DERNIERES_DONNEES.zone_opportunite?.bas);
   positionnerBande("risque", DERNIERES_DONNEES.zone_risque?.haut, DERNIERES_DONNEES.zone_risque?.bas);
 }
@@ -58,7 +109,6 @@ function initChart() {
     wickDownColor: "#f85149",
   });
 
-  creerBande("nuage", "bande-nuage");
   creerBande("opportunite", "bande-opportunite");
   creerBande("risque", "bande-risque");
 
@@ -69,6 +119,15 @@ function initChart() {
     chart.applyOptions({ width: el.clientWidth, height: el.clientHeight });
     repositionnerToutesLesBandes();
   });
+
+  // Filet de sécurité : certains gestes tactiles (pinch/pan sur Safari iOS)
+  // ne déclenchent pas toujours subscribeVisibleTimeRangeChange de façon
+  // fiable. Boucle légère qui garde les bandes alignées en continu.
+  function boucleRepositionnement() {
+    repositionnerToutesLesBandes();
+    requestAnimationFrame(boucleRepositionnement);
+  }
+  requestAnimationFrame(boucleRepositionnement);
 }
 
 function formatNombre(n) {
@@ -190,11 +249,16 @@ async function chargerAnalyse() {
     data.zone_opportunite = haussier && haussier.cible !== null ? { haut: haussier.cible, bas: data.prix_actuel } : null;
     data.zone_risque = baissier && baissier.cible !== null ? { haut: data.prix_actuel, bas: baissier.cible } : null;
 
+    // Vider les lignes de prix de l'actif précédent AVANT de charger les
+    // nouvelles données : sinon elles restent attachées à la série au
+    // moment du setData() et faussent le calcul de l'échelle automatique
+    // (bug trouvé le 24/10/2026 : l'échelle restait bloquée sur celle de
+    // l'actif précédent, ex. BTC, après un changement d'actif vers ETH).
+    viderLignesDePrix();
     DERNIERES_DONNEES = data;
     series.setData(data.candles);
     chart.timeScale().fitContent();
 
-    viderLignesDePrix();
     for (const [nom, valeur] of Object.entries(data.moyennes_mobiles)) {
       ajouterLigneDePrix(valeur, nom.toUpperCase(), "#58a6ff");
     }
@@ -204,6 +268,7 @@ async function chargerAnalyse() {
 
     repositionnerToutesLesBandes();
     afficherSource(data);
+    reinitialiserBoutonAnalyse();
     afficherResume(data);
   } catch (err) {
     document.getElementById("source-badge").textContent = `Erreur : ${err}`;
@@ -213,7 +278,64 @@ async function chargerAnalyse() {
   }
 }
 
+function reinitialiserBoutonAnalyse() {
+  const bouton = document.getElementById("bouton-analyse");
+  bouton.textContent = "Lancer l'analyse";
+  bouton.className = "bouton-analyse";
+  bouton.disabled = false;
+  document.getElementById("analyse-llm").innerHTML = "";
+}
+
+function afficherTexteAnalyse(resultat) {
+  const el = document.getElementById("analyse-llm");
+  const t = resultat.texte;
+  const origine = resultat.source_cache ? "servi depuis le cache (même bougie)" : "généré à l'instant";
+  el.innerHTML = `
+    <div class="carte-analyse">
+      <h2>Analyse</h2>
+      <h3>Tendance</h3><p>${t.tendance}</p>
+      <h3>Niveaux à surveiller</h3><p>${t.niveaux}</p>
+      <h3>Scénarios</h3><p>${t.scenarios}</p>
+      <h3>Ce qui changerait l'analyse</h3><p>${t.ce_qui_changerait}</p>
+      <h3>Risques</h3><p>${t.risques}</p>
+      <p class="meta">Analyse technique automatisée, générée automatiquement. Ce n'est pas un conseil financier. ${origine}, le ${new Date(resultat.genere_le).toLocaleString("fr-FR")}.</p>
+    </div>
+  `;
+}
+
+async function lancerAnalyseLLM() {
+  const bouton = document.getElementById("bouton-analyse");
+  const actif = ETAT.actif;
+  const timeframe = ETAT.timeframe;
+  bouton.disabled = true;
+  bouton.className = "bouton-analyse chargement-llm";
+  bouton.textContent = "Analyse en cours…";
+  try {
+    const res = await fetch(`/api/analysis-llm/${actif}/${timeframe}`, { method: "POST" });
+    // Un changement d'actif/timeframe entre-temps a déjà réinitialisé le
+    // bouton : ne pas écraser son état avec une réponse devenue obsolète.
+    if (actif !== ETAT.actif || timeframe !== ETAT.timeframe) return;
+
+    if (!res.ok) {
+      const erreur = await res.json().catch(() => ({ detail: res.statusText }));
+      bouton.className = "bouton-analyse erreur";
+      bouton.textContent = erreur.detail || "Erreur";
+      bouton.disabled = false;
+      return;
+    }
+    const resultat = await res.json();
+    bouton.className = "bouton-analyse ok";
+    bouton.textContent = resultat.source_cache ? "Analyse à jour" : "Analyse terminée";
+    afficherTexteAnalyse(resultat);
+  } catch (err) {
+    bouton.className = "bouton-analyse erreur";
+    bouton.textContent = "Erreur réseau";
+    bouton.disabled = false;
+  }
+}
+
 function initControles() {
+  document.getElementById("bouton-analyse").addEventListener("click", lancerAnalyseLLM);
   document.getElementById("selecteur-actif").addEventListener("change", (e) => {
     ETAT.actif = e.target.value;
     chargerAnalyse();

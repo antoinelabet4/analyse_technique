@@ -50,6 +50,19 @@ lancer un developpement.
 - Gabarits : `docs/cahiers-des-charges/README.md` et
   `docs/specs-techniques/README.md`.
 
+## Principe directeur : jamais deviner, soit on sait soit on ne sait pas
+
+A la demande explicite du proprietaire (24/10/2026), reformulation
+renforcee du principe "aucune donnee inventee" ci-dessous, etendue a
+toute incertitude, pas seulement aux chiffres de marche : si une
+information n'est pas verifiee (parametre d'un indicateur, comportement
+d'une API tierce, preference du proprietaire non exprimee, etc.),
+l'agent le dit explicitement et demande, plutot que de deviner une
+valeur plausible et de l'implementer comme si elle etait confirmee.
+Vaut pour le code, les specs, les cahiers des charges, et doit aussi
+etre applique dans le prompt systeme du texte explicatif LLM lui-meme
+(le moteur ne doit jamais deviner un chiffre absent du JSON "facts").
+
 ## Principe directeur : aucune donnee inventee
 
 Deja pose dans le brief du projet, rappele ici car structurant pour tout

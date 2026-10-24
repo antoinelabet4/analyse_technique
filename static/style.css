@@ -157,27 +157,62 @@ header span {
   opacity: 0.4;
 }
 
+#nuage-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+
 #chart-overlay {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
 
+.bouton-analyse {
+  position: absolute;
+  left: 50%;
+  bottom: 0.75rem;
+  transform: translateX(-50%);
+  z-index: 3;
+  background: var(--surface-2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.6rem 1.3rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.bouton-analyse.chargement-llm {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.bouton-analyse.ok {
+  background: var(--vert);
+  color: #06240f;
+  border-color: var(--vert);
+}
+
+.bouton-analyse.erreur {
+  background: var(--rouge);
+  color: white;
+  border-color: var(--rouge);
+}
+
+.bouton-analyse:disabled {
+  opacity: 0.7;
+}
+
 .bande {
   position: absolute;
   left: 0;
   border-radius: 2px;
-}
-
-.bande-nuage {
-  background: rgba(240, 180, 41, 0.14);
-  border-top: 1px solid rgba(240, 180, 41, 0.5);
-  border-bottom: 1px solid rgba(240, 180, 41, 0.5);
-}
-
-.bande-nuage.bande-nuage-baissier {
-  background: rgba(239, 68, 68, 0.1);
-  border-color: rgba(239, 68, 68, 0.4);
 }
 
 .bande-opportunite {
@@ -188,6 +223,40 @@ header span {
 .bande-risque {
   background: rgba(239, 68, 68, 0.12);
   border-bottom: 1px dashed rgba(239, 68, 68, 0.5);
+}
+
+#analyse-llm {
+  padding: 0.75rem 1rem 0;
+}
+
+#analyse-llm .carte-analyse {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+}
+
+#analyse-llm h2 {
+  font-size: 0.95rem;
+  margin: 0 0 0.5rem;
+}
+
+#analyse-llm h3 {
+  font-size: 0.82rem;
+  margin: 0.7rem 0 0.2rem;
+  color: var(--accent);
+}
+
+#analyse-llm p {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+#analyse-llm .meta {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 0.6rem;
 }
 
 #resume {
