@@ -22,8 +22,11 @@ telle plutôt que d'être simulée.
 
 ## État d'avancement
 
-**À faire — 24/10/2026.** Vérification des sources en cours avant
-rédaction de la spec technique.
+**Fait pour la portée retenue — 24/10/2026.** Toutes les sources codées
+et testées (voir journal). Funding/OI Binance Futures confirmé bloqué
+(451) depuis l'IP américaine de ce sandbox — **à reconfirmer depuis le
+mini PC (IP française)**, le code gère déjà l'échec proprement dans les
+deux cas.
 
 ## Critères de validation
 
@@ -41,3 +44,13 @@ rédaction de la spec technique.
   des sources de données (certaines avaient déjà été signalées comme
   risquées lors de la recherche du 23/10/2026 pour le P0 : Binance
   Futures depuis la France, DXY/S&P 500 sans source gratuite confirmée).
+- **24/10/2026** — Code livré : `app/data/derivatives.py` (funding/OI
+  Binance Futures, options Deribit, cache TTL 5 min), `app/data/macro.py`
+  (Fear & Greed, dominance BTC CoinGecko, DXY/S&P 500 via Yahoo Finance
+  non officiel + croisement FRED, cache TTL 15 min), `app/data/cache_utils.py`
+  (cache générique partagé). `build_facts` étendu avec les blocs
+  "derives" et "macro". Interface : section repliable "Contexte macro et
+  dérivés" avec badge indisponible + raison lisible par source, jamais
+  de donnée simulée. Vérifié en conditions réelles (toutes les sources
+  répondent sauf funding/OI, bloqué 451 depuis cette IP US). 93 tests
+  passent (aucun test ne dépend du réseau réel).

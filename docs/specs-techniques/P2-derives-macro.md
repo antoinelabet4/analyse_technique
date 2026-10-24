@@ -1,7 +1,7 @@
 # Spec technique : dérivés (funding, OI, options) et macro (F&G, dominance, DXY, S&P)
 
 Cahier associé : docs/cahiers-des-charges/P2-derives-macro.md
-Statut : brouillon
+Statut : validé le 24/10/2026 par le propriétaire (croisement Yahoo/FRED pour le S&P 500 ; DXY sans vraie seconde source, FRED DTWEXBGS affiché en contexte complémentaire clairement distinct, pas comme un croisement du même chiffre)
 
 ## Besoin
 
@@ -56,6 +56,15 @@ curl -s -o /dev/null -w "%{http_code}\n" "https://fapi.binance.com/fapi/v1/premi
   préavis** : à surveiller, prévoir un message clair si elle cesse de
   répondre plutôt qu'un plantage silencieux. Stooq testé et rejeté
   (connexion TLS réinitialisée systématiquement, inutilisable).
+- **Croisement validé le 24/10/2026** : `fred.stlouisfed.org/graph/fredgraph.csv?id=SP500`
+  (Federal Reserve, officiel, sans clé, vérifié accessible) sert de
+  second avis pour le S&P 500 — écart anormal entre Yahoo et FRED
+  (> 2%, seuil arbitraire documenté comme tel) signalé explicitement
+  dans l'interface plutôt que masqué. Pour le DXY, pas de vraie
+  équivalence officielle gratuite : `id=DTWEXBGS` (indice dollar
+  pondéré du commerce, Fed, panier et méthodologie différents de l'ICE
+  DXY) est affiché à part, explicitement étiqueté comme un indicateur
+  complémentaire et non un croisement du même chiffre.
 
 ## Contrat d'API / de fonction
 

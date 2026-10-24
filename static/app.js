@@ -180,6 +180,40 @@ function afficherResume(data) {
     ? `Force relative vs BTC : ${data.force_relative_btc.tendance} (${formatNombre(data.force_relative_btc.variation_pct_periode)}% sur 30 bougies)`
     : "";
 
+  const contexte = [];
+  const fo = data.derives.funding_oi;
+  contexte.push(
+    fo.disponible
+      ? `Funding rate : ${(fo.funding_rate * 100).toFixed(4)}% · Open interest : ${formatNombre(fo.open_interest)}`
+      : `Funding rate / Open interest : indisponible${fo.raison ? ` (${fo.raison})` : ""}`
+  );
+  const opt = data.derives.options;
+  contexte.push(
+    opt.disponible
+      ? `Options (Deribit) : ratio put/call (OI) ${formatNombre(opt.put_call_ratio_oi)} sur ${opt.nb_instruments} instruments`
+      : `Options (Deribit) : indisponible${opt.raison ? ` (${opt.raison})` : ""}`
+  );
+  const fg = data.macro.fear_greed;
+  contexte.push(
+    fg.disponible ? `Fear & Greed : ${fg.valeur} (${fg.classification})` : `Fear & Greed : indisponible`
+  );
+  const dom = data.macro.dominance_btc;
+  contexte.push(
+    dom.disponible ? `Dominance BTC : ${formatNombre(dom.btc_pct)}%` : `Dominance BTC : indisponible`
+  );
+  const sp = data.macro.sp500;
+  contexte.push(
+    sp.disponible
+      ? `S&P 500 : ${formatNombre(sp.valeur)}${sp.source_croisee ? ` (croisé ${sp.source_croisee} : ${formatNombre(sp.valeur_croisee)}${sp.ecart_anormal ? " · écart anormal" : ""})` : ""}`
+      : `S&P 500 : indisponible`
+  );
+  const dxy = data.macro.dxy;
+  contexte.push(
+    dxy.disponible
+      ? `DXY : ${formatNombre(dxy.valeur)}${dxy.source_croisee ? ` (contexte ${dxy.source_croisee} : ${formatNombre(dxy.valeur_croisee)})` : ""}`
+      : `DXY : indisponible`
+  );
+
   // Toujours afficher les deux zones, y compris quand aucune n'est
   // identifiée : le dire explicitement plutôt que de masquer la section
   // en silence (demande explicite du propriétaire, 24/10/2026).
@@ -214,6 +248,11 @@ function afficherResume(data) {
       <p>${scenarios}</p>
     </details>
     ${forceRelative ? `<p class="force-relative">${forceRelative}</p>` : ""}
+    <details>
+      <summary>Contexte macro et dérivés</summary>
+      <p>${contexte.join("<br>")}</p>
+      ${dxy.disponible && dxy.note ? `<p class="disclaimer">${dxy.note}</p>` : ""}
+    </details>
     <p class="disclaimer">Analyse technique automatisée, pas un conseil financier. Lecture directe des chiffres calculés, pas encore de texte explicatif généré (phase suivante). Régime : prix ${data.regime.prix_vs_mm_longue} de la moyenne mobile longue (pente ${data.regime.pente_mm_longue}), structure ${data.regime.structure}.</p>
   `;
 }
