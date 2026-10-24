@@ -58,14 +58,31 @@ def build_facts(asset: str, timeframe: str, candles_limit: int = 1000) -> dict:
     ichimoku_result = ichimoku(candles)
 
     if timeframe == "1d":
+        mm50_series = sma(closes, 50)
+        mm200_series = sma(closes, 200)
         moyennes_mobiles = {
-            "mm50": _nombre_ou_none(sma(closes, 50).iloc[-1]),
-            "mm200": _nombre_ou_none(sma(closes, 200).iloc[-1]),
+            "mm50": _nombre_ou_none(mm50_series.iloc[-1]),
+            "mm200": _nombre_ou_none(mm200_series.iloc[-1]),
         }
-        mm_longue = sma(closes, 200)
+        mm_longue = mm200_series
+        series_moyennes_mobiles = {"mm50": mm50_series, "mm200": mm200_series}
     else:
-        moyennes_mobiles = {"ema200": _nombre_ou_none(ema(closes, 200).iloc[-1])}
-        mm_longue = ema(closes, 200)
+        ema200_series = ema(closes, 200)
+        moyennes_mobiles = {"ema200": _nombre_ou_none(ema200_series.iloc[-1])}
+        mm_longue = ema200_series
+        series_moyennes_mobiles = {"ema200": ema200_series}
+
+    # Courbe complète (pas seulement la valeur actuelle) pour que le
+    # graphique affiche les moyennes mobiles comme une vraie ligne qui suit
+    # le prix dans le temps, demande explicite du propriétaire (24/10/2026).
+    moyennes_mobiles_serie = {
+        nom: [
+            {"time": t, "valeur": _nombre_ou_none(v)}
+            for t, v in zip(candles["time"], serie)
+            if not pd.isna(v)
+        ]
+        for nom, serie in series_moyennes_mobiles.items()
+    }
 
     nuage_serie = [
         {"time": t, "senkou_a": _nombre_ou_none(a), "senkou_b": _nombre_ou_none(b)}
@@ -145,6 +162,7 @@ def build_facts(asset: str, timeframe: str, candles_limit: int = 1000) -> dict:
         "perime": resultat_marche.perime,
         "prix_actuel": _nombre_ou_none(closes.iloc[-1]),
         "moyennes_mobiles": moyennes_mobiles,
+        "moyennes_mobiles_serie": moyennes_mobiles_serie,
         "rsi14": _nombre_ou_none(rsi_series.iloc[-1]),
         "atr14": _nombre_ou_none(atr_series.iloc[-1]),
         "ichimoku": {
