@@ -69,6 +69,15 @@ function initChart() {
     chart.applyOptions({ width: el.clientWidth, height: el.clientHeight });
     repositionnerToutesLesBandes();
   });
+
+  // Filet de sécurité : certains gestes tactiles (pinch/pan sur Safari iOS)
+  // ne déclenchent pas toujours subscribeVisibleTimeRangeChange de façon
+  // fiable. Boucle légère qui garde les bandes alignées en continu.
+  function boucleRepositionnement() {
+    repositionnerToutesLesBandes();
+    requestAnimationFrame(boucleRepositionnement);
+  }
+  requestAnimationFrame(boucleRepositionnement);
 }
 
 function formatNombre(n) {
@@ -190,11 +199,16 @@ async function chargerAnalyse() {
     data.zone_opportunite = haussier && haussier.cible !== null ? { haut: haussier.cible, bas: data.prix_actuel } : null;
     data.zone_risque = baissier && baissier.cible !== null ? { haut: data.prix_actuel, bas: baissier.cible } : null;
 
+    // Vider les lignes de prix de l'actif précédent AVANT de charger les
+    // nouvelles données : sinon elles restent attachées à la série au
+    // moment du setData() et faussent le calcul de l'échelle automatique
+    // (bug trouvé le 24/10/2026 : l'échelle restait bloquée sur celle de
+    // l'actif précédent, ex. BTC, après un changement d'actif vers ETH).
+    viderLignesDePrix();
     DERNIERES_DONNEES = data;
     series.setData(data.candles);
     chart.timeScale().fitContent();
 
-    viderLignesDePrix();
     for (const [nom, valeur] of Object.entries(data.moyennes_mobiles)) {
       ajouterLigneDePrix(valeur, nom.toUpperCase(), "#58a6ff");
     }
