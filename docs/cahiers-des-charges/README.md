@@ -37,6 +37,7 @@ peut avoir plusieurs cahiers si son perimetre se decoupe naturellement
 | UI | [Selection des indicateurs + graphique plein ecran](./UI-indicateurs-plein-ecran.md) | Fait — 24/10/2026 |
 | UI | [Selecteur de duree affichee + bouton d'analyse sous le graphique](./UI-duree-graphique.md) | Fait — 24/10/2026 (recette mobile via Tailscale a faire par le proprietaire) |
 | UI | [RSI et MACD en sous-graphiques](./UI-rsi-macd-sous-graphique.md) | Fait — 25/10/2026 (recette mobile via Tailscale a faire par le proprietaire) |
+| LLM | [Verdict achat/vente explicite](./verdict-achat-vente.md) | Fait — 25/10/2026 (changement de principe valide par le proprietaire, pertinence du verdict a confirmer en usage reel) |
 
 Ce tableau est mis a jour a chaque fois qu'un cahier des charges change
 d'etat.

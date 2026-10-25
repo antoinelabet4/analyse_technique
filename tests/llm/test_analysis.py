@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -8,6 +9,7 @@ from app.llm import analysis as analysis_module
 from app.llm.analysis import DebitDepasse, PlafondAtteint, TexteNonFiable, _facts_pour_prompt, generer_analyse
 
 TEXTE_VALIDE = {
+    "verdict": "attendre",
     "tendance": "Prix à 100 au-dessus de la MM200 à 90.",
     "niveaux": "Résistance à 110.",
     "scenarios": "Haussier si clôture au-dessus de 110.",
@@ -176,6 +178,39 @@ def test_appeler_llm_leve_texte_non_fiable_si_reponse_vide(monkeypatch):
 
     with pytest.raises(TexteNonFiable):
         analysis_module._appeler_llm(_facts(), "claude-sonnet-5-5")
+
+
+def _client_factice_avec_json(payload: dict):
+    texte = json.dumps(payload, ensure_ascii=False)
+    message_factice = _MessageFactice(texte, stop_reason="end_turn")
+    return type("ClientFactice", (), {"messages": type("Messages", (), {"create": staticmethod(lambda **kw: message_factice)})()})()
+
+
+def test_appeler_llm_leve_texte_non_fiable_si_verdict_absent(monkeypatch):
+    sans_verdict = {k: v for k, v in TEXTE_VALIDE.items() if k != "verdict"}
+    monkeypatch.setattr(analysis_module.anthropic, "Anthropic", lambda: _client_factice_avec_json(sans_verdict))
+
+    with pytest.raises(TexteNonFiable, match="[Vv]erdict"):
+        analysis_module._appeler_llm(_facts(), "claude-sonnet-5-5")
+
+
+def test_appeler_llm_leve_texte_non_fiable_si_verdict_hors_liste(monkeypatch):
+    # Demande explicite du propriétaire (25/10/2026) : le LLM doit trancher
+    # avec un verdict achat/vente/attente, mais ce jugement n'étant pas un
+    # chiffre vérifiable contre les facts, on contraint au moins sa forme
+    # à l'une des trois valeurs exactes attendues.
+    verdict_invente = {**TEXTE_VALIDE, "verdict": "achat massif"}
+    monkeypatch.setattr(analysis_module.anthropic, "Anthropic", lambda: _client_factice_avec_json(verdict_invente))
+
+    with pytest.raises(TexteNonFiable, match="[Vv]erdict"):
+        analysis_module._appeler_llm(_facts(), "claude-sonnet-5-5")
+
+
+def test_appeler_llm_accepte_les_trois_verdicts_valides(monkeypatch):
+    for verdict in ("acheter", "vendre", "attendre"):
+        monkeypatch.setattr(analysis_module.anthropic, "Anthropic", lambda: _client_factice_avec_json({**TEXTE_VALIDE, "verdict": verdict}))
+        resultat = analysis_module._appeler_llm(_facts(), "claude-sonnet-5-5")
+        assert resultat["verdict"] == verdict
 
 
 def test_reponse_tronquee_est_reessayee_une_fois(tmp_path: Path, monkeypatch):

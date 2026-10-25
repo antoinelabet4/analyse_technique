@@ -26,15 +26,23 @@ DEBIT_MINIMUM_SECONDES = 10
 MAX_TOKENS_REPONSE = 4096
 
 SECTIONS = ["tendance", "niveaux", "scenarios", "ce_qui_changerait", "risques"]
+# Demande explicite du propriétaire (25/10/2026), avec confirmation du
+# format (badge dédié) et du disclaimer reformulé en conséquence : un
+# verdict directionnel assumé, pas une simple description. Le contrôle
+# anti-invention ne peut pas vérifier un jugement comme il vérifie un
+# chiffre, c'est pourquoi le verdict est contraint à l'une de ces trois
+# valeurs exactes plutôt que laissé en texte libre.
+VERDICTS_VALIDES = {"acheter", "vendre", "attendre"}
 
-PROMPT_SYSTEME = """Tu rédiges un texte explicatif en français simple pour une application d'analyse technique crypto personnelle, à partir UNIQUEMENT du JSON "facts" fourni par l'utilisateur.
+PROMPT_SYSTEME = """Tu es un analyste technique crypto expérimenté qui rédige, en français simple, une analyse pour une application d'usage strictement personnel, à partir UNIQUEMENT du JSON "facts" fourni par l'utilisateur.
 
 Règles strictes :
 - N'utilise AUCUN chiffre qui n'est pas déjà présent dans le JSON fourni. N'invente, n'arrondis différemment et ne calcule aucune nouvelle valeur numérique.
 - N'exprime jamais une variation en pourcentage, une différence, un ratio ou toute autre valeur calculée à partir des chiffres du JSON : seuls les chiffres qui y figurent déjà tels quels peuvent apparaître dans le texte.
 - Tu peux mentionner une date si elle correspond à une date déjà présente dans le JSON (ex. "a_jour_le"), jamais une date ou une année inventée.
-- Aucune prédiction de prix, aucun ton péremptoire, aucun conseil d'achat ou de vente.
-- Réponds uniquement en JSON valide avec exactement ces 5 clés, chaque valeur étant un court paragraphe en français (3 phrases maximum, jamais une liste à puces) : "tendance", "niveaux", "scenarios", "ce_qui_changerait", "risques".
+- Aucune prédiction de prix.
+- Tranche avec un verdict explicite dans la clé "verdict" : exactement un seul mot parmi "acheter", "vendre" ou "attendre", rien d'autre. Base ce verdict uniquement sur ce qui est déjà dans le JSON (régime, niveaux les plus proches du prix actuel, RSI14, MACD, position dans le nuage Ichimoku) : jamais sur une intuition ou une information extérieure au JSON. Un prix proche d'un support avec un régime haussier et une dynamique qui s'améliore va plutôt vers "acheter" ; proche d'une résistance avec un régime baissier ou une dynamique qui se dégrade va plutôt vers "vendre" ; une situation mitigée ou un range sans signal net va vers "attendre".
+- Réponds uniquement en JSON valide avec exactement ces 6 clés : "verdict", "tendance", "niveaux", "scenarios", "ce_qui_changerait", "risques". Les 5 dernières sont chacune un court paragraphe en français (3 phrases maximum, jamais une liste à puces).
 - Sois synthétique, pas descriptif : ne récite pas chaque indicateur un par un dans l'ordre du JSON. Ne garde que ce qui compte pour lire la situation du moment, en priorisant toujours les niveaux (supports, résistances, nuage) les plus proches du prix actuel plutôt que les extrêmes du JSON, qui comptent moins pour une lecture à court terme.
 - Si une information manque dans le JSON fourni, dis-le explicitement dans le texte plutôt que de l'omettre silencieusement ou de la deviner."""
 
@@ -195,6 +203,8 @@ def _appeler_llm(facts: dict, modele: str, chiffres_a_eviter: list[float] | None
     for section in SECTIONS:
         if section not in texte:
             raise TexteNonFiable(f"Section manquante dans la réponse LLM : {section}")
+    if texte.get("verdict") not in VERDICTS_VALIDES:
+        raise TexteNonFiable(f"Verdict invalide dans la réponse LLM : {texte.get('verdict')!r}")
     return texte
 
 
