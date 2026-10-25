@@ -62,6 +62,13 @@ def test_api_analysis_btc_1d_has_no_force_relative(monkeypatch):
     assert len(data["moyennes_mobiles_serie"]["mm50"]) > 0
     point = data["moyennes_mobiles_serie"]["mm50"][0]
     assert set(point.keys()) == {"time", "valeur"}
+    # RSI et MACD sont aussi fournis en courbe complète pour un affichage
+    # en sous-graphique sous le graphique principal.
+    assert len(data["rsi_serie"]) > 0
+    assert set(data["rsi_serie"][0].keys()) == {"time", "valeur"}
+    assert set(data["macd"].keys()) == {"ligne", "signal", "histogramme", "serie"}
+    assert len(data["macd"]["serie"]) > 0
+    assert set(data["macd"]["serie"][0].keys()) == {"time", "ligne", "signal", "histogramme"}
 
 
 def test_api_analysis_alt_includes_force_relative(monkeypatch):

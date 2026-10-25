@@ -63,6 +63,35 @@ def atr(candles: pd.DataFrame, period: int = 14) -> pd.Series:
     return true_range.ewm(alpha=1 / period, adjust=False, min_periods=period).mean()
 
 
+# Réglages MACD classiques (12/26/9). Même point ouvert que pour
+# l'Ichimoku ci-dessus : aucun paramétrage spécifique à la méthode de
+# Vincent Ganne n'a pu être confirmé pour le MACD.
+MACD_RAPIDE_PERIOD = 12
+MACD_LENT_PERIOD = 26
+MACD_SIGNAL_PERIOD = 9
+
+
+@dataclass
+class MACDResult:
+    ligne: pd.Series
+    signal: pd.Series
+    histogramme: pd.Series
+
+
+def macd(
+    closes: pd.Series,
+    rapide: int = MACD_RAPIDE_PERIOD,
+    lent: int = MACD_LENT_PERIOD,
+    signal_period: int = MACD_SIGNAL_PERIOD,
+) -> MACDResult:
+    """MACD (Moving Average Convergence Divergence) : ligne = EMA rapide -
+    EMA lente, signal = EMA de la ligne, histogramme = ligne - signal."""
+    ligne = ema(closes, rapide) - ema(closes, lent)
+    signal = ligne.ewm(span=signal_period, adjust=False, min_periods=signal_period).mean()
+    histogramme = ligne - signal
+    return MACDResult(ligne=ligne, signal=signal, histogramme=histogramme)
+
+
 # --------------------------------------------------------------------------
 # Ichimoku Kinko Hyo
 # --------------------------------------------------------------------------
