@@ -301,6 +301,12 @@ body.plein-ecran-graphique footer {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  /* Même correctif que pour #nuage-svg (24/10/2026) : les canvas internes
+     de Lightweight Charts ont un z-index explicite, sans celui-ci les
+     bandes de zones (plus petites et donc plus discrètes depuis le
+     correctif du chaînage des niveaux, 25/10/2026) pouvaient passer
+     derrière les bougies. */
+  z-index: 5;
 }
 
 .periode-affichee {
