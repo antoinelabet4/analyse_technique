@@ -25,6 +25,15 @@ DEBIT_MINIMUM_SECONDES = 10
 # consomme des tokens de raisonnement avant le texte JSON visible.
 MAX_TOKENS_REPONSE = 4096
 
+# Bug trouvé le 25/10/2026 : le cache était indexé uniquement par
+# (asset, timeframe, dernière bougie), jamais invalidé par un changement
+# de PROMPT_SYSTEME. Résultat, un texte généré avec un ancien prompt
+# continuait d'être servi tel quel tant que la bougie du jour n'était pas
+# clôturée (jusqu'à 24h avec un timeframe "1d"), même après le
+# déploiement d'un prompt amélioré. Incrémenter cette valeur à chaque
+# changement de PROMPT_SYSTEME qui modifie le texte produit.
+PROMPT_VERSION = 3
+
 SECTIONS = ["tendance", "niveaux", "scenarios", "ce_qui_changerait", "risques"]
 # Demande explicite du propriétaire (25/10/2026), avec confirmation du
 # format (badge dédié) et du disclaimer reformulé en conséquence : un
@@ -32,7 +41,16 @@ SECTIONS = ["tendance", "niveaux", "scenarios", "ce_qui_changerait", "risques"]
 # anti-invention ne peut pas vérifier un jugement comme il vérifie un
 # chiffre, c'est pourquoi le verdict est contraint à l'une de ces trois
 # valeurs exactes plutôt que laissé en texte libre.
-VERDICTS_VALIDES = {"acheter", "vendre", "attendre"}
+#
+# Renommé le 25/10/2026 (acheter/vendre/attendre -> haussier/baissier/
+# neutre) : un même signal technique ("proche d'une résistance, dynamique
+# qui se dégrade") ne veut pas dire la même chose selon qu'on détient déjà
+# l'actif ou non ("vendre" n'a pas de sens si on ne détient rien). Le LLM
+# ne connaît pas la position de l'utilisateur et ne doit donc trancher que
+# sur la lecture technique pure ; c'est le frontend qui traduit ce signal
+# en "Acheter"/"Conserver"/"Vendre"/"Attendre" selon la position choisie
+# (voir calculerLibelleVerdict dans app.js).
+VERDICTS_VALIDES = {"haussier", "baissier", "neutre"}
 
 PROMPT_SYSTEME = """Tu es un analyste technique crypto expérimenté qui rédige, en français simple, une analyse pour une application d'usage strictement personnel, à partir UNIQUEMENT du JSON "facts" fourni par l'utilisateur.
 
@@ -41,7 +59,7 @@ Règles strictes :
 - N'exprime jamais une variation en pourcentage, une différence, un ratio ou toute autre valeur calculée à partir des chiffres du JSON : seuls les chiffres qui y figurent déjà tels quels peuvent apparaître dans le texte.
 - Tu peux mentionner une date si elle correspond à une date déjà présente dans le JSON (ex. "a_jour_le"), jamais une date ou une année inventée.
 - Aucune prédiction de prix.
-- Tranche avec un verdict explicite dans la clé "verdict" : exactement un seul mot parmi "acheter", "vendre" ou "attendre", rien d'autre. Base ce verdict uniquement sur ce qui est déjà dans le JSON (régime, niveaux les plus proches du prix actuel, RSI14, MACD, position dans le nuage Ichimoku) : jamais sur une intuition ou une information extérieure au JSON. Un prix proche d'un support avec un régime haussier et une dynamique qui s'améliore va plutôt vers "acheter" ; proche d'une résistance avec un régime baissier ou une dynamique qui se dégrade va plutôt vers "vendre" ; une situation mitigée ou un range sans signal net va vers "attendre".
+- Tranche avec un signal technique explicite dans la clé "verdict" : exactement un seul mot parmi "haussier", "baissier" ou "neutre", rien d'autre. Base ce signal uniquement sur ce qui est déjà dans le JSON (régime, niveaux les plus proches du prix actuel, RSI14, MACD, position dans le nuage Ichimoku) : jamais sur une intuition ou une information extérieure au JSON, et jamais sur une hypothèse de qui détient ou non l'actif (information que tu n'as pas). Un prix proche d'un support avec un régime haussier et une dynamique qui s'améliore va plutôt vers "haussier" ; proche d'une résistance avec un régime baissier ou une dynamique qui se dégrade va plutôt vers "baissier" ; une situation mitigée ou un range sans signal net va vers "neutre".
 - Réponds uniquement en JSON valide avec exactement ces 6 clés : "verdict", "tendance", "niveaux", "scenarios", "ce_qui_changerait", "risques". Les 5 dernières sont chacune un court paragraphe en français (3 phrases maximum, jamais une liste à puces).
 - Sois synthétique, pas descriptif : ne récite pas chaque indicateur un par un dans l'ordre du JSON. Ne garde que ce qui compte pour lire la situation du moment, en priorisant toujours les niveaux (supports, résistances, nuage) les plus proches du prix actuel plutôt que les extrêmes du JSON, qui comptent moins pour une lecture à court terme.
 - Si une information manque dans le JSON fourni, dis-le explicitement dans le texte plutôt que de l'omettre silencieusement ou de la deviner."""
@@ -71,13 +89,14 @@ def _connect(cache_path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(cache_path)
     conn.execute(
         """
-        CREATE TABLE IF NOT EXISTS analyses_llm (
+        CREATE TABLE IF NOT EXISTS analyses_llm_v2 (
             asset TEXT NOT NULL,
             timeframe TEXT NOT NULL,
             derniere_bougie TEXT NOT NULL,
+            version INTEGER NOT NULL,
             texte_json TEXT NOT NULL,
             genere_le TEXT NOT NULL,
-            PRIMARY KEY (asset, timeframe, derniere_bougie)
+            PRIMARY KEY (asset, timeframe, derniere_bougie, version)
         )
         """
     )
@@ -132,8 +151,9 @@ def _verifier_debit(conn: sqlite3.Connection, minimum_secondes: int | None = Non
 
 def _lire_cache(conn: sqlite3.Connection, asset: str, timeframe: str, derniere_bougie: str) -> dict | None:
     row = conn.execute(
-        "SELECT texte_json, genere_le FROM analyses_llm WHERE asset = ? AND timeframe = ? AND derniere_bougie = ?",
-        (asset, timeframe, derniere_bougie),
+        "SELECT texte_json, genere_le FROM analyses_llm_v2 "
+        "WHERE asset = ? AND timeframe = ? AND derniere_bougie = ? AND version = ?",
+        (asset, timeframe, derniere_bougie, PROMPT_VERSION),
     ).fetchone()
     if row is None:
         return None
@@ -145,12 +165,12 @@ def _ecrire_cache(conn: sqlite3.Connection, asset: str, timeframe: str, derniere
     genere_le = datetime.now(tz=timezone.utc).isoformat()
     conn.execute(
         """
-        INSERT INTO analyses_llm (asset, timeframe, derniere_bougie, texte_json, genere_le)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT (asset, timeframe, derniere_bougie) DO UPDATE SET
+        INSERT INTO analyses_llm_v2 (asset, timeframe, derniere_bougie, version, texte_json, genere_le)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT (asset, timeframe, derniere_bougie, version) DO UPDATE SET
             texte_json = excluded.texte_json, genere_le = excluded.genere_le
         """,
-        (asset, timeframe, derniere_bougie, json.dumps(texte), genere_le),
+        (asset, timeframe, derniere_bougie, PROMPT_VERSION, json.dumps(texte), genere_le),
     )
     conn.commit()
     return genere_le

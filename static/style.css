@@ -68,6 +68,20 @@ header span {
   align-items: stretch;
 }
 
+.toggle-detention {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 1rem 0.5rem;
+  padding: 0.5rem 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  width: fit-content;
+}
+
 #selecteur-actif {
   flex: 1;
   background: var(--surface);
@@ -271,6 +285,7 @@ body.plein-ecran-graphique .bouton-fermer-plein-ecran {
 
 body.plein-ecran-graphique header,
 body.plein-ecran-graphique .selecteurs,
+body.plein-ecran-graphique .toggle-detention,
 body.plein-ecran-graphique .legende-zones,
 body.plein-ecran-graphique .periode-affichee,
 body.plein-ecran-graphique #bouton-analyse,
@@ -424,6 +439,11 @@ body.plein-ecran-graphique footer {
   background: var(--surface-2);
   color: var(--muted);
   border: 1px solid var(--border);
+}
+
+.verdict-conserver {
+  background: var(--accent);
+  color: white;
 }
 
 #analyse-llm h3 {

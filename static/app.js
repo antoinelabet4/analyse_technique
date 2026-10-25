@@ -23,6 +23,31 @@ function chargerIndicateursVisibles() {
 
 const INDICATEURS_VISIBLES = chargerIndicateursVisibles();
 
+// Demande explicite du propriétaire (25/10/2026) : le LLM calcule un
+// signal technique pur (haussier/baissier/neutre, jamais "acheter" ou
+// "vendre" — il ne sait pas si on détient l'actif). Le réglage "je
+// détiens / je ne détiens pas", par actif, mémorisé sur l'appareil,
+// permet de traduire ce signal en action pertinente côté client, sans
+// aucun nouvel appel réseau.
+function chargerPositionsDetenues() {
+  try {
+    const sauvegarde = localStorage.getItem("positionsDetenues");
+    return sauvegarde ? JSON.parse(sauvegarde) : {};
+  } catch (err) {
+    return {};
+  }
+}
+
+let POSITIONS_DETENUES = chargerPositionsDetenues();
+
+function sauvegarderPositionsDetenues() {
+  try {
+    localStorage.setItem("positionsDetenues", JSON.stringify(POSITIONS_DETENUES));
+  } catch (err) {
+    // Tant pis, préférence non mémorisée pour la prochaine visite.
+  }
+}
+
 function sauvegarderIndicateursVisibles() {
   try {
     localStorage.setItem("indicateursVisibles", JSON.stringify(INDICATEURS_VISIBLES));
@@ -460,29 +485,44 @@ async function chargerAnalyse() {
   }
 }
 
+let DERNIER_RESULTAT_LLM = null;
+
 function reinitialiserBoutonAnalyse() {
   const bouton = document.getElementById("bouton-analyse");
   bouton.textContent = "Lancer l'analyse";
   bouton.className = "bouton-analyse";
   bouton.disabled = false;
   document.getElementById("analyse-llm").innerHTML = "";
+  DERNIER_RESULTAT_LLM = null;
 }
 
-// Demande explicite du propriétaire (25/10/2026) : un verdict assumé
-// (acheter/vendre/attendre), affiché comme un badge distinct du texte,
-// avec un disclaimer reformulé en conséquence (ce n'est plus "pas un
-// conseil", ça en devient un, donc on le dit honnêtement).
-const VERDICT_INFOS = {
-  acheter: { label: "Acheter", classe: "verdict-acheter" },
-  vendre: { label: "Vendre", classe: "verdict-vendre" },
-  attendre: { label: "Attendre", classe: "verdict-attendre" },
-};
+// Demande explicite du propriétaire (25/10/2026) : le LLM calcule un
+// signal technique pur (haussier/baissier/neutre), jamais directement
+// "acheter" ou "vendre" — il ne sait pas si l'utilisateur détient déjà
+// l'actif, et "vendre" n'a pas de sens si ce n'est pas le cas. Le badge
+// traduit ce signal en action selon la position choisie (case à cocher
+// "Je détiens", par actif) : un même signal technique peut vouloir dire
+// "achète" (pas détenu) ou "conserve" (déjà détenu).
+function calculerLibelleVerdict(signal, detient) {
+  if (signal === "haussier") {
+    return detient ? { label: "Conserver", classe: "verdict-conserver" } : { label: "Acheter", classe: "verdict-acheter" };
+  }
+  if (signal === "baissier") {
+    return detient ? { label: "Vendre", classe: "verdict-vendre" } : { label: "Attendre", classe: "verdict-attendre" };
+  }
+  if (signal === "neutre") {
+    return { label: "Attendre", classe: "verdict-attendre" };
+  }
+  return null;
+}
 
 function afficherTexteAnalyse(resultat) {
+  DERNIER_RESULTAT_LLM = resultat;
   const el = document.getElementById("analyse-llm");
   const t = resultat.texte;
   const origine = resultat.source_cache ? "servi depuis le cache (même bougie)" : "généré à l'instant";
-  const verdict = VERDICT_INFOS[t.verdict];
+  const detient = !!POSITIONS_DETENUES[ETAT.actif];
+  const verdict = calculerLibelleVerdict(t.verdict, detient);
   el.innerHTML = `
     <div class="carte-analyse">
       <h2>Analyse</h2>
@@ -614,10 +654,27 @@ function initPeriodeAffichee() {
   });
 }
 
+function mettreAJourToggleDetention() {
+  document.getElementById("label-actif-detention").textContent = ETAT.actif;
+  document.getElementById("case-detention").checked = !!POSITIONS_DETENUES[ETAT.actif];
+}
+
+function initPositionDetenue() {
+  mettreAJourToggleDetention();
+  document.getElementById("case-detention").addEventListener("change", (e) => {
+    POSITIONS_DETENUES[ETAT.actif] = e.target.checked;
+    sauvegarderPositionsDetenues();
+    // Recalcule immédiatement le badge affiché, sans nouvel appel LLM :
+    // seule la traduction signal -> action change, pas le signal lui-même.
+    if (DERNIER_RESULTAT_LLM) afficherTexteAnalyse(DERNIER_RESULTAT_LLM);
+  });
+}
+
 function initControles() {
   document.getElementById("bouton-analyse").addEventListener("click", lancerAnalyseLLM);
   document.getElementById("selecteur-actif").addEventListener("change", (e) => {
     ETAT.actif = e.target.value;
+    mettreAJourToggleDetention();
     chargerAnalyse();
   });
   document.querySelectorAll("[data-timeframe]").forEach((bouton) => {
@@ -630,6 +687,7 @@ function initControles() {
   initMenuIndicateurs();
   initPleinEcran();
   initPeriodeAffichee();
+  initPositionDetenue();
   window.addEventListener("orientationchange", () => setTimeout(redimensionnerChart, 100));
 }
 

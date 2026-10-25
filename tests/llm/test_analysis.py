@@ -9,7 +9,7 @@ from app.llm import analysis as analysis_module
 from app.llm.analysis import DebitDepasse, PlafondAtteint, TexteNonFiable, _facts_pour_prompt, generer_analyse
 
 TEXTE_VALIDE = {
-    "verdict": "attendre",
+    "verdict": "neutre",
     "tendance": "Prix à 100 au-dessus de la MM200 à 90.",
     "niveaux": "Résistance à 110.",
     "scenarios": "Haussier si clôture au-dessus de 110.",
@@ -73,6 +73,25 @@ def test_deuxieme_appel_meme_bougie_sert_le_cache_sans_rappeler_le_llm(tmp_path:
 
     assert resultat.source_cache is True
     assert len(appels) == 1  # pas de deuxième appel LLM
+
+
+def test_changement_de_prompt_version_invalide_le_cache(tmp_path: Path, monkeypatch):
+    # Bug réel du 25/10/2026 : un changement de PROMPT_SYSTEME (texte plus
+    # court, verdict ajouté...) ne changeait pas la clé de cache, donc un
+    # texte généré avec l'ancien prompt restait servi tel quel jusqu'à la
+    # clôture de la bougie en cours (jusqu'à 24h en 1d), même après
+    # déploiement du nouveau prompt.
+    cache_path = tmp_path / "cache.db"
+    appels = []
+    monkeypatch.setattr(analysis_module, "DEBIT_MINIMUM_SECONDES", 0)
+    monkeypatch.setattr(analysis_module, "_appeler_llm", lambda facts, modele, **kwargs: (appels.append(1), TEXTE_VALIDE)[1])
+
+    generer_analyse("BTC", "1d", _facts(), cache_path=cache_path)
+    monkeypatch.setattr(analysis_module, "PROMPT_VERSION", analysis_module.PROMPT_VERSION + 1)
+    resultat = generer_analyse("BTC", "1d", _facts(), cache_path=cache_path)
+
+    assert resultat.source_cache is False
+    assert len(appels) == 2
 
 
 def test_nouvelle_bougie_invalide_le_cache(tmp_path: Path, monkeypatch):
@@ -196,9 +215,9 @@ def test_appeler_llm_leve_texte_non_fiable_si_verdict_absent(monkeypatch):
 
 def test_appeler_llm_leve_texte_non_fiable_si_verdict_hors_liste(monkeypatch):
     # Demande explicite du propriétaire (25/10/2026) : le LLM doit trancher
-    # avec un verdict achat/vente/attente, mais ce jugement n'étant pas un
-    # chiffre vérifiable contre les facts, on contraint au moins sa forme
-    # à l'une des trois valeurs exactes attendues.
+    # avec un signal technique (haussier/baissier/neutre), mais ce
+    # jugement n'étant pas un chiffre vérifiable contre les facts, on
+    # contraint au moins sa forme à l'une des trois valeurs exactes.
     verdict_invente = {**TEXTE_VALIDE, "verdict": "achat massif"}
     monkeypatch.setattr(analysis_module.anthropic, "Anthropic", lambda: _client_factice_avec_json(verdict_invente))
 
@@ -207,7 +226,7 @@ def test_appeler_llm_leve_texte_non_fiable_si_verdict_hors_liste(monkeypatch):
 
 
 def test_appeler_llm_accepte_les_trois_verdicts_valides(monkeypatch):
-    for verdict in ("acheter", "vendre", "attendre"):
+    for verdict in ("haussier", "baissier", "neutre"):
         monkeypatch.setattr(analysis_module.anthropic, "Anthropic", lambda: _client_factice_avec_json({**TEXTE_VALIDE, "verdict": verdict}))
         resultat = analysis_module._appeler_llm(_facts(), "claude-sonnet-5-5")
         assert resultat["verdict"] == verdict
