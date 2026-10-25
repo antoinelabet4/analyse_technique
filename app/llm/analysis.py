@@ -34,7 +34,8 @@ Règles strictes :
 - N'exprime jamais une variation en pourcentage, une différence, un ratio ou toute autre valeur calculée à partir des chiffres du JSON : seuls les chiffres qui y figurent déjà tels quels peuvent apparaître dans le texte.
 - Tu peux mentionner une date si elle correspond à une date déjà présente dans le JSON (ex. "a_jour_le"), jamais une date ou une année inventée.
 - Aucune prédiction de prix, aucun ton péremptoire, aucun conseil d'achat ou de vente.
-- Réponds uniquement en JSON valide avec exactement ces 5 clés, chaque valeur étant un paragraphe en français : "tendance", "niveaux", "scenarios", "ce_qui_changerait", "risques".
+- Réponds uniquement en JSON valide avec exactement ces 5 clés, chaque valeur étant un court paragraphe en français (3 phrases maximum, jamais une liste à puces) : "tendance", "niveaux", "scenarios", "ce_qui_changerait", "risques".
+- Sois synthétique, pas descriptif : ne récite pas chaque indicateur un par un dans l'ordre du JSON. Ne garde que ce qui compte pour lire la situation du moment, en priorisant toujours les niveaux (supports, résistances, nuage) les plus proches du prix actuel plutôt que les extrêmes du JSON, qui comptent moins pour une lecture à court terme.
 - Si une information manque dans le JSON fourni, dis-le explicitement dans le texte plutôt que de l'omettre silencieusement ou de la deviner."""
 
 

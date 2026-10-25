@@ -234,3 +234,41 @@ d'itération UI (zones toujours présentes, etc.), traitées séparément.
   propriétaire après redéploiement, en quittant complètement puis en
   relançant la PWA installée (pas seulement la remettre au premier
   plan) pour forcer un rechargement complet.
+- **25/10/2026 (suite 4)** — Première analyse LLM réussie en production,
+  mais retour du propriétaire sur la qualité : texte trop long, pas assez
+  structuré, et niveaux stratégiques bien trop loin du prix (support
+  49000/53485, résistance 123218/126199 — les bornes extrêmes du range
+  historique). Le propriétaire a aussi demandé si le texte pouvait
+  recommander explicitement d'acheter/vendre ; réponse donnée dans la
+  conversation (pas un correctif de code) : le risque n'est pas légal
+  (projet solo, pas de clients) mais architectural — le contrôle
+  anti-invention ne sait vérifier que des chiffres contre le JSON, jamais
+  un jugement ("bonne zone"), qui resterait structurellement
+  invérifiable. Pas de changement de ce principe sans confirmation
+  explicite ultérieure du propriétaire.
+  Investigation du moteur de niveaux (approuvée explicitement) : cause
+  trouvée dans `_group_into_zones`, un bug de chaînage. La fonction
+  comparait chaque nouveau pivot au **dernier** élément déjà ajouté à la
+  zone plutôt qu'à son premier : une suite de pivots proches deux à deux
+  pouvait donc se chaîner en une seule zone géante, même avec un premier
+  et un dernier élément très éloignés. Resté invisible avec 300 bougies
+  (plage de prix plus étroite), le bug est devenu flagrant avec les 1000
+  bougies désormais chargées par défaut (voir UI-duree-graphique.md) :
+  presque tous les pivots d'une tendance se chaînaient en 2 zones, les
+  extrêmes du range. Corrigé en comparant chaque pivot au **premier**
+  élément de sa zone (largeur de zone bornée par la tolérance ATR, plus
+  de chaînage). Vérifié sur données réelles BTC (1000 bougies) : passe de
+  2 niveaux (49k/123k) à 7 niveaux concrets et proches du prix (ex.
+  74k/76k/78k en support, 82k/85k/87k en résistance pour un prix à 80k).
+  Le nuage Ichimoku, qui pouvait être évincé du classement par les
+  nouveaux pivots plus nombreux, est maintenant toujours ajouté à part
+  (jamais compté dans le plafond `max_per_side`).
+  En plus de ce correctif moteur, prompt système resserré pour un texte
+  plus court (3 phrases maximum par section, jamais de liste à puces) et
+  plus synthétique (consigne explicite de prioriser les niveaux proches
+  du prix plutôt que les extrêmes du JSON, de ne pas réciter chaque
+  indicateur un par un) — sans toucher à l'interdiction de conseil
+  d'achat/vente. 129 tests passent, dont un nouveau qui reproduit
+  exactement le bug de chaînage et vérifie que chaque zone reste bornée
+  par la tolérance. Non vérifiable en conditions réelles depuis cette
+  session : à confirmer par le propriétaire après redéploiement.
