@@ -30,14 +30,19 @@ def _facts():
 def test_facts_pour_prompt_retire_les_series_volumineuses():
     facts = _facts()
     facts["ichimoku"] = {"tenkan": 100.0, "nuage_serie": [{"time": "2026-01-01", "senkou_a": 1.0, "senkou_b": 2.0}]}
+    facts["rsi_serie"] = [{"time": "2026-01-01", "valeur": 55.0}]
+    facts["macd"] = {"ligne": 1.0, "signal": 0.5, "histogramme": 0.5, "serie": [{"time": "2026-01-01", "ligne": 1.0, "signal": 0.5, "histogramme": 0.5}]}
 
     reduit = _facts_pour_prompt(facts)
 
     assert "candles" not in reduit
     assert "moyennes_mobiles_serie" not in reduit
+    assert "rsi_serie" not in reduit
     assert "nuage_serie" not in reduit["ichimoku"]
+    assert "serie" not in reduit["macd"]
     # Les valeurs résumées, elles, restent présentes pour le texte explicatif.
     assert reduit["ichimoku"]["tenkan"] == 100.0
+    assert reduit["macd"]["ligne"] == 1.0
     assert reduit["prix_actuel"] == facts["prix_actuel"]
     assert reduit["moyennes_mobiles"] == facts["moyennes_mobiles"]
     # La fonction ne modifie pas le dict d'origine (toujours utilisé pour

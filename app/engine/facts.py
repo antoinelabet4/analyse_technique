@@ -16,7 +16,7 @@ from app.data.macro import get_btc_dominance, get_dxy, get_fear_greed, get_sp500
 from app.data.market import get_candles
 from app.data.onchain import get_onchain_metrics
 from app.engine.cycle import get_btc_cycle_channel
-from app.engine.indicators import atr, ema, ichimoku, levels, regime, rsi, scenarios, sma
+from app.engine.indicators import atr, ema, ichimoku, levels, macd, regime, rsi, scenarios, sma
 from app.engine.relative_strength import relative_strength
 
 
@@ -55,7 +55,22 @@ def build_facts(asset: str, timeframe: str, candles_limit: int = 1000) -> dict:
 
     atr_series = atr(candles, period=14)
     rsi_series = rsi(closes, period=14)
+    macd_result = macd(closes)
     ichimoku_result = ichimoku(candles)
+
+    # Courbes complètes RSI et MACD (pas seulement la valeur actuelle),
+    # pour un affichage en sous-graphique sous le graphique principal,
+    # demande explicite du propriétaire (25/10/2026).
+    rsi_serie = [
+        {"time": t, "valeur": _nombre_ou_none(v)}
+        for t, v in zip(candles["time"], rsi_series)
+        if not pd.isna(v)
+    ]
+    macd_serie = [
+        {"time": t, "ligne": _nombre_ou_none(l), "signal": _nombre_ou_none(s), "histogramme": _nombre_ou_none(h)}
+        for t, l, s, h in zip(candles["time"], macd_result.ligne, macd_result.signal, macd_result.histogramme)
+        if not (pd.isna(l) or pd.isna(s) or pd.isna(h))
+    ]
 
     if timeframe == "1d":
         mm50_series = sma(closes, 50)
@@ -164,7 +179,14 @@ def build_facts(asset: str, timeframe: str, candles_limit: int = 1000) -> dict:
         "moyennes_mobiles": moyennes_mobiles,
         "moyennes_mobiles_serie": moyennes_mobiles_serie,
         "rsi14": _nombre_ou_none(rsi_series.iloc[-1]),
+        "rsi_serie": rsi_serie,
         "atr14": _nombre_ou_none(atr_series.iloc[-1]),
+        "macd": {
+            "ligne": _nombre_ou_none(macd_result.ligne.iloc[-1]),
+            "signal": _nombre_ou_none(macd_result.signal.iloc[-1]),
+            "histogramme": _nombre_ou_none(macd_result.histogramme.iloc[-1]),
+            "serie": macd_serie,
+        },
         "ichimoku": {
             "tenkan": _nombre_ou_none(ichimoku_result.tenkan_actuel),
             "kijun": _nombre_ou_none(ichimoku_result.kijun_actuel),

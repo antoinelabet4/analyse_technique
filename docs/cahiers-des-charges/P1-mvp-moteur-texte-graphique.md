@@ -213,3 +213,24 @@ d'itération UI (zones toujours présentes, etc.), traitées séparément.
   réessai reçoit bien la liste exacte des chiffres rejetés par le
   premier essai. Non vérifiable en conditions réelles depuis cette
   session : à confirmer par le propriétaire après redéploiement.
+- **25/10/2026 (suite 3)** — Correctif du réessai déployé et confirmé
+  actif (le rejet suivant ne contenait plus qu'un seul chiffre, `[-5.0]`,
+  au lieu de deux) : le réessai a donc bien reçu le chiffre à éviter et
+  en a quand même produit un autre. À ce stade, ce dernier chiffre
+  ressemble à une vraie invention ponctuelle du modèle que le contrôle
+  bloque correctement (comportement voulu : jamais de chiffre non
+  vérifié affiché, quitte à devoir relancer l'analyse). Par ailleurs,
+  l'en-tête restait caché sous la barre de statut malgré le correctif
+  CSS déployé : cause probable identifiée, aucun `Cache-Control`
+  explicite n'était envoyé pour l'HTML/CSS/JS/manifest/service worker,
+  et Safari iOS en PWA installée peut continuer à servir une version
+  périmée de ces fichiers après un redéploiement plutôt que de
+  revalider. Ajout d'un middleware qui force `Cache-Control: no-cache`
+  sur ces routes (revalidation systématique via l'ETag déjà émis par
+  `StaticFiles`, pas de `no-store` pour ne pas perdre le bénéfice du
+  304). 125 tests passent, dont un nouveau qui vérifie l'en-tête sur
+  toutes les routes concernées. Non vérifiable en conditions réelles
+  depuis cette session (pas d'iPhone disponible) : à confirmer par le
+  propriétaire après redéploiement, en quittant complètement puis en
+  relançant la PWA installée (pas seulement la remettre au premier
+  plan) pour forcer un rechargement complet.

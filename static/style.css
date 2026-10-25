@@ -218,7 +218,10 @@ header span {
 
 #chart {
   width: 100%;
-  height: 48vh;
+  /* 48vh de base + marge pour les sous-graphiques RSI/MACD (chacun avec
+     une hauteur fixe en pixels côté JS, voir initChart) : sans cette
+     marge, ils grignoteraient la place du graphique de prix. */
+  height: 62vh;
   touch-action: none;
   transition: opacity 0.15s ease;
 }

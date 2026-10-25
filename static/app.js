@@ -5,9 +5,14 @@ let derniereRequeteId = 0;
 let bandes = {}; // nom -> élément DOM de la bande colorée
 let lignesMM = {}; // nom (mm50/mm200/ema200) -> série LightweightCharts
 const COULEURS_MM = { mm50: "#58a6ff", mm200: "#f0b429", ema200: "#f0b429" };
+let serieRSI = null;
+let ligneRSI30 = null, ligneRSI70 = null;
+let serieMACDLigne = null, serieMACDSignal = null, serieMACDHistogramme = null;
+const PANE_RSI = 1;
+const PANE_MACD = 2;
 
 function chargerIndicateursVisibles() {
-  const defaut = { mm: true, nuage: true, niveaux: true, zones: true };
+  const defaut = { mm: true, nuage: true, niveaux: true, zones: true, rsi: true, macd: true };
   try {
     const sauvegarde = localStorage.getItem("indicateursVisibles");
     return sauvegarde ? { ...defaut, ...JSON.parse(sauvegarde) } : defaut;
@@ -144,10 +149,39 @@ function dessinerCourbesMM() {
   }
 }
 
+function dessinerRSI() {
+  if (!serieRSI) return;
+  const visible = INDICATEURS_VISIBLES.rsi;
+  serieRSI.applyOptions({ visible });
+  if (!visible || !DERNIERES_DONNEES) return;
+  serieRSI.setData((DERNIERES_DONNEES.rsi_serie || []).map((p) => ({ time: p.time, value: p.valeur })));
+}
+
+function dessinerMACD() {
+  if (!serieMACDLigne) return;
+  const visible = INDICATEURS_VISIBLES.macd;
+  serieMACDLigne.applyOptions({ visible });
+  serieMACDSignal.applyOptions({ visible });
+  serieMACDHistogramme.applyOptions({ visible });
+  if (!visible || !DERNIERES_DONNEES) return;
+  const points = DERNIERES_DONNEES.macd?.serie || [];
+  serieMACDLigne.setData(points.map((p) => ({ time: p.time, value: p.ligne })));
+  serieMACDSignal.setData(points.map((p) => ({ time: p.time, value: p.signal })));
+  serieMACDHistogramme.setData(
+    points.map((p) => ({
+      time: p.time,
+      value: p.histogramme,
+      color: p.histogramme >= 0 ? "rgba(34,197,94,0.6)" : "rgba(239,68,68,0.6)",
+    }))
+  );
+}
+
 function redessinerIndicateurs() {
   if (!DERNIERES_DONNEES) return;
   viderLignesDePrix();
   dessinerCourbesMM();
+  dessinerRSI();
+  dessinerMACD();
   if (INDICATEURS_VISIBLES.niveaux) {
     for (const n of DERNIERES_DONNEES.niveaux) {
       if (n.type !== "nuage") ajouterLigneDePrix(n.prix_haut, "Niveau", "#8b949e");
@@ -181,6 +215,38 @@ function initChart() {
     wickUpColor: "#3fb950",
     wickDownColor: "#f85149",
   });
+
+  // Sous-graphiques RSI et MACD, demande explicite du propriétaire
+  // (25/10/2026) : séries créées une seule fois (contrairement aux
+  // moyennes mobiles, leur nombre ne change jamais selon le timeframe),
+  // seules les données sont remplacées à chaque rechargement.
+  serieRSI = chart.addSeries(
+    LightweightCharts.LineSeries,
+    { color: "#a78bfa", lineWidth: 1, title: "RSI14", priceLineVisible: false, lastValueVisible: true },
+    PANE_RSI
+  );
+  ligneRSI30 = serieRSI.createPriceLine({ price: 30, color: "#8b949e", lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dotted, axisLabelVisible: true, title: "30" });
+  ligneRSI70 = serieRSI.createPriceLine({ price: 70, color: "#8b949e", lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dotted, axisLabelVisible: true, title: "70" });
+
+  serieMACDHistogramme = chart.addSeries(
+    LightweightCharts.HistogramSeries,
+    { title: "MACD hist.", priceLineVisible: false, lastValueVisible: false },
+    PANE_MACD
+  );
+  serieMACDLigne = chart.addSeries(
+    LightweightCharts.LineSeries,
+    { color: "#58a6ff", lineWidth: 1, title: "MACD", priceLineVisible: false, lastValueVisible: true },
+    PANE_MACD
+  );
+  serieMACDSignal = chart.addSeries(
+    LightweightCharts.LineSeries,
+    { color: "#f0b429", lineWidth: 1, title: "Signal", priceLineVisible: false, lastValueVisible: true },
+    PANE_MACD
+  );
+
+  const panneaux = chart.panes();
+  if (panneaux[PANE_RSI]) panneaux[PANE_RSI].setHeight(90);
+  if (panneaux[PANE_MACD]) panneaux[PANE_MACD].setHeight(90);
 
   creerBande("opportunite", "bande-opportunite");
   creerBande("risque", "bande-risque");

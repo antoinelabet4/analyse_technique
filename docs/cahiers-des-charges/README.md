@@ -36,6 +36,7 @@ peut avoir plusieurs cahiers si son perimetre se decoupe naturellement
 | P3 | [On-chain, lignes de tendance, declenchement n8n](./P3-onchain-cycle-n8n.md) | Fait pour la portee retenue — 24/10/2026 (envoi Telegram reel a tester une fois les identifiants renseignes sur le mini PC) |
 | UI | [Selection des indicateurs + graphique plein ecran](./UI-indicateurs-plein-ecran.md) | Fait — 24/10/2026 |
 | UI | [Selecteur de duree affichee + bouton d'analyse sous le graphique](./UI-duree-graphique.md) | Fait — 24/10/2026 (recette mobile via Tailscale a faire par le proprietaire) |
+| UI | [RSI et MACD en sous-graphiques](./UI-rsi-macd-sous-graphique.md) | Fait — 25/10/2026 (recette mobile via Tailscale a faire par le proprietaire) |
 
 Ce tableau est mis a jour a chaque fois qu'un cahier des charges change
 d'etat.

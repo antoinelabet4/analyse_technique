@@ -5,7 +5,7 @@ import logging
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -26,6 +26,22 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger("app")
 
 app = FastAPI(title="Analyse technique crypto")
+
+
+@app.middleware("http")
+async def desactiver_cache_statique(request: Request, call_next):
+    # Aucun Cache-Control explicite n'était envoyé pour l'HTML/CSS/JS/
+    # manifest/service worker : Safari iOS, en PWA installée, peut alors
+    # continuer à servir une version mise en cache de ces fichiers au lieu
+    # de revalider auprès du serveur, même après un redéploiement (bug
+    # signalé le 25/10/2026 : un correctif CSS pourtant déployé restait
+    # invisible sur l'appareil). "no-cache" force une revalidation à
+    # chaque chargement (pas "no-store" : l'ETag déjà émis par StaticFiles
+    # permet un 304 rapide si le fichier n'a pas changé).
+    response = await call_next(request)
+    if request.url.path == "/" or request.url.path.startswith("/static/") or request.url.path in ("/manifest.json", "/sw.js"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
 
 
 @app.get("/health")
