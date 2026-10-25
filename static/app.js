@@ -2,7 +2,7 @@ const ETAT = { actif: "BTC", timeframe: "1d", periode: "tout" };
 const PERIODES_EN_JOURS = { "1m": 30, "3m": 90, "6m": 180, "1y": 365 };
 let chart, series;
 let derniereRequeteId = 0;
-let bandes = {}; // nom -> élément DOM de la bande colorée
+let bandes = { niveaux: [] }; // niveaux -> tableau des divs DOM des bandes de niveaux
 let lignesMM = {}; // nom (mm50/mm200/ema200) -> série LightweightCharts
 const COULEURS_MM = { mm50: "#58a6ff", mm200: "#f0b429", ema200: "#f0b429" };
 let serieRSI = null;
@@ -12,7 +12,7 @@ const PANE_RSI = 1;
 const PANE_MACD = 2;
 
 function chargerIndicateursVisibles() {
-  const defaut = { mm: true, nuage: true, niveaux: true, zones: true, rsi: true, macd: true };
+  const defaut = { mm: true, nuage: true, zones: true, rsi: true, macd: true };
   try {
     const sauvegarde = localStorage.getItem("indicateursVisibles");
     return sauvegarde ? { ...defaut, ...JSON.parse(sauvegarde) } : defaut;
@@ -31,21 +31,12 @@ function sauvegarderIndicateursVisibles() {
   }
 }
 
-function creerBande(nom, classeCss) {
-  const conteneur = document.getElementById("chart-overlay");
-  const div = document.createElement("div");
-  div.className = `bande ${classeCss}`;
-  div.style.display = "none";
-  conteneur.appendChild(div);
-  bandes[nom] = div;
+function viderBandesNiveaux() {
+  for (const div of bandes.niveaux) div.remove();
+  bandes.niveaux = [];
 }
 
-function positionnerBande(nom, prixHaut, prixBas) {
-  const div = bandes[nom];
-  if (prixHaut === null || prixHaut === undefined || prixBas === null || prixBas === undefined) {
-    div.style.display = "none";
-    return;
-  }
+function positionnerBandeDiv(div, prixHaut, prixBas) {
   const yHaut = series.priceToCoordinate(Math.max(prixHaut, prixBas));
   const yBas = series.priceToCoordinate(Math.min(prixHaut, prixBas));
   if (yHaut === null || yBas === null) {
@@ -55,8 +46,32 @@ function positionnerBande(nom, prixHaut, prixBas) {
   const largeurEchelle = chart.priceScale("right").width();
   div.style.display = "block";
   div.style.top = `${yHaut}px`;
-  div.style.height = `${Math.max(1, yBas - yHaut)}px`;
+  div.style.height = `${Math.max(2, yBas - yHaut)}px`;
   div.style.right = `${largeurEchelle}px`;
+}
+
+// Une bande colorée par niveau de pivot proche du prix (vert en dessous =
+// zone d'opportunité/support, rouge au-dessus = zone de risque/
+// résistance), à la place des lignes "Niveau" pointillées d'origine :
+// demande explicite du propriétaire (25/10/2026), plus lisible qu'une
+// ligne fine avec une étiquette, dans le même esprit visuel que le nuage
+// Ichimoku. Remplace aussi l'ancienne bande unique dérivée des scénarios.
+function dessinerZonesNiveaux() {
+  viderBandesNiveaux();
+  if (!INDICATEURS_VISIBLES.zones || !DERNIERES_DONNEES) return;
+  const prixActuel = DERNIERES_DONNEES.prix_actuel;
+  const conteneur = document.getElementById("chart-overlay");
+  for (const n of DERNIERES_DONNEES.niveaux) {
+    if (n.type !== "pivot") continue;
+    const estSupport = n.prix_haut <= prixActuel;
+    const estResistance = n.prix_bas >= prixActuel;
+    if (!estSupport && !estResistance) continue; // prix à l'intérieur du niveau, cas rare, ignoré
+    const div = document.createElement("div");
+    div.className = `bande ${estSupport ? "bande-opportunite" : "bande-risque"}`;
+    conteneur.appendChild(div);
+    positionnerBandeDiv(div, n.prix_haut, n.prix_bas);
+    bandes.niveaux.push(div);
+  }
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -115,13 +130,7 @@ function dessinerNuage() {
 function repositionnerToutesLesBandes() {
   if (!DERNIERES_DONNEES) return;
   dessinerNuage();
-  if (INDICATEURS_VISIBLES.zones) {
-    positionnerBande("opportunite", DERNIERES_DONNEES.zone_opportunite?.haut, DERNIERES_DONNEES.zone_opportunite?.bas);
-    positionnerBande("risque", DERNIERES_DONNEES.zone_risque?.haut, DERNIERES_DONNEES.zone_risque?.bas);
-  } else {
-    bandes.opportunite.style.display = "none";
-    bandes.risque.style.display = "none";
-  }
+  dessinerZonesNiveaux();
 }
 
 function viderCourbesMM() {
@@ -182,11 +191,6 @@ function redessinerIndicateurs() {
   dessinerCourbesMM();
   dessinerRSI();
   dessinerMACD();
-  if (INDICATEURS_VISIBLES.niveaux) {
-    for (const n of DERNIERES_DONNEES.niveaux) {
-      if (n.type !== "nuage") ajouterLigneDePrix(n.prix_haut, "Niveau", "#8b949e");
-    }
-  }
   repositionnerToutesLesBandes();
 }
 
@@ -247,9 +251,6 @@ function initChart() {
   const panneaux = chart.panes();
   if (panneaux[PANE_RSI]) panneaux[PANE_RSI].setHeight(90);
   if (panneaux[PANE_MACD]) panneaux[PANE_MACD].setHeight(90);
-
-  creerBande("opportunite", "bande-opportunite");
-  creerBande("risque", "bande-risque");
 
   chart.timeScale().subscribeVisibleTimeRangeChange(repositionnerToutesLesBandes);
 
@@ -349,16 +350,23 @@ function afficherResume(data) {
       : `DXY : indisponible`
   );
 
-  // Toujours afficher les deux zones, y compris quand aucune n'est
-  // identifiée : le dire explicitement plutôt que de masquer la section
-  // en silence (demande explicite du propriétaire, 24/10/2026).
+  // Une entrée par niveau de pivot proche du prix (plus la seule zone la
+  // plus proche de chaque côté comme avant le 25/10/2026), toujours
+  // affichées même quand aucune n'est identifiée : le dire explicitement
+  // plutôt que de masquer la section en silence (demande du propriétaire,
+  // 24/10/2026, étendue le 25/10/2026 aux niveaux désormais multiples).
+  const niveauxPivot = data.niveaux.filter((n) => n.type === "pivot");
+  const zonesOpportunite = niveauxPivot.filter((n) => n.prix_haut <= data.prix_actuel);
+  const zonesRisque = niveauxPivot.filter((n) => n.prix_bas >= data.prix_actuel);
+  const formaterZone = (n, classeCss, libelle) =>
+    `<span class="pastille ${classeCss}"></span> ${libelle} : ${formatNombre(n.prix_bas)}–${formatNombre(n.prix_haut)}${n.touches ? ` (${n.touches} touches)` : ""}`;
   const zones = [
-    data.zone_opportunite
-      ? `<span class="pastille pastille-opportunite"></span> Zone d'opportunité : ${formatNombre(data.zone_opportunite.bas)}–${formatNombre(data.zone_opportunite.haut)}`
-      : `<span class="pastille pastille-opportunite"></span> Zone d'opportunité : aucune résistance identifiée au-dessus du prix actuel`,
-    data.zone_risque
-      ? `<span class="pastille pastille-risque"></span> Zone de risque : ${formatNombre(data.zone_risque.bas)}–${formatNombre(data.zone_risque.haut)}`
-      : `<span class="pastille pastille-risque"></span> Zone de risque : aucun support identifié en dessous du prix actuel`,
+    zonesOpportunite.length
+      ? zonesOpportunite.map((n) => formaterZone(n, "pastille-opportunite", "Zone d'opportunité")).join("<br>")
+      : `<span class="pastille pastille-opportunite"></span> Zone d'opportunité : aucun support identifié en dessous du prix actuel`,
+    zonesRisque.length
+      ? zonesRisque.map((n) => formaterZone(n, "pastille-risque", "Zone de risque")).join("<br>")
+      : `<span class="pastille pastille-risque"></span> Zone de risque : aucune résistance identifiée au-dessus du prix actuel`,
   ];
 
   el.innerHTML = `
@@ -419,13 +427,6 @@ async function chargerAnalyse() {
     }
     const data = await res.json();
     if (idRequete !== derniereRequeteId) return;
-
-    // Zones dérivées des scénarios déjà calculés par le moteur (mêmes
-    // chiffres que la section "Scénarios"), jamais une donnée inventée.
-    const haussier = data.scenarios.find((s) => s.type === "haussier");
-    const baissier = data.scenarios.find((s) => s.type === "baissier");
-    data.zone_opportunite = haussier && haussier.cible !== null ? { haut: haussier.cible, bas: data.prix_actuel } : null;
-    data.zone_risque = baissier && baissier.cible !== null ? { haut: data.prix_actuel, bas: baissier.cible } : null;
 
     // Vider les lignes de prix de l'actif précédent AVANT de charger les
     // nouvelles données : sinon elles restent attachées à la série au

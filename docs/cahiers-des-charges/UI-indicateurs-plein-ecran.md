@@ -93,3 +93,28 @@ orientation paysage) pour mieux le lire.
     `autoScale` reste actif et l'échelle correcte après le geste, alors
     qu'elle se serait auparavant bloquée. 120 tests backend toujours
     verts (changement purement frontend).
+- **25/10/2026 (zones support/résistance à la place des lignes "Niveau")**
+  — Demande explicite du propriétaire, posée en même temps que le
+  correctif du chaînage des niveaux (voir
+  `P1-mvp-moteur-texte-graphique.md`) : remplacer les lignes "Niveau"
+  pointillées (une par pivot, avec étiquette) par des bandes colorées —
+  vert sous le prix (support/opportunité), rouge au-dessus (résistance/
+  risque) — dans le même esprit visuel que le nuage Ichimoku, jugées plus
+  lisibles. Choix précisé par question explicite (`AskUserQuestion`,
+  25/10/2026) : des bandes fixes au niveau de prix, pas une projection
+  dans le temps (qui aurait été une prédiction de prix, hors périmètre).
+  L'ancien mécanisme à bande unique ("zone d'opportunité"/"zone de
+  risque" dérivées de la cible du scénario le plus proche) est remplacé
+  par une bande par niveau de pivot proche du prix (jusqu'à 3 de chaque
+  côté, comme `levels()` les sélectionne déjà). La case à cocher
+  "Niveaux" (lignes) est retirée, fusionnée avec "Zones support/
+  résistance" (bandes), qui pilote maintenant ce rendu. Bug de rendu
+  trouvé et corrigé pendant la vérification, même cause que pour le
+  nuage Ichimoku (24/10/2026) : `#chart-overlay` n'avait pas de z-index
+  explicite, les nouvelles bandes (plus petites, donc plus sensibles au
+  problème que l'ancienne bande unique souvent large) pouvaient passer
+  derrière les bougies ; `z-index: 5` ajouté, comme pour `#nuage-svg`.
+  Vérifié par Playwright avec données réelles Binance (BTC, ETH) :
+  rendu correct des bandes par niveau, masquage/affichage via la case à
+  cocher, changement d'actif sans bande résiduelle ni erreur JS. 132
+  tests backend toujours verts (changement purement frontend).
