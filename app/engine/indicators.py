@@ -264,7 +264,15 @@ def _group_into_zones(pivots: list[float], tolerance: float) -> list[Level]:
     pivots_tries = sorted(pivots)
     zones: list[list[float]] = [[pivots_tries[0]]]
     for prix in pivots_tries[1:]:
-        if prix - zones[-1][-1] <= tolerance:
+        # Comparer au premier élément de la zone (sa largeur totale), pas
+        # au dernier ajouté : sinon une suite de pivots proches deux à
+        # deux ("chaînage") finit regroupée dans une seule zone géante,
+        # même si son premier et son dernier élément sont très éloignés.
+        # Bug réel trouvé le 25/10/2026 : avec 1000 bougies chargées (plage
+        # de prix bien plus large qu'avant), presque tous les pivots d'une
+        # tendance se chaînaient en seulement 2 zones (les extrêmes du
+        # range), masquant tout niveau intermédiaire proche du prix actuel.
+        if prix - zones[-1][0] <= tolerance:
             zones[-1].append(prix)
         else:
             zones.append([prix])
@@ -314,15 +322,6 @@ def levels(
         zone.role_inverse = _detecter_inversion_role(zone, candles)
         zone.est_record_historique = zone.prix_haut >= record_historique
 
-    if ichimoku_result.nuage_haut_actuel is not None and ichimoku_result.nuage_bas_actuel is not None:
-        zones.append(
-            Level(
-                prix_haut=ichimoku_result.nuage_haut_actuel,
-                prix_bas=ichimoku_result.nuage_bas_actuel,
-                type="nuage",
-            )
-        )
-
     prix_courant = float(candles["close"].iloc[-1])
     supports = sorted(
         (z for z in zones if z.prix_haut <= prix_courant),
@@ -333,7 +332,25 @@ def levels(
         key=lambda z: z.prix_bas - prix_courant,
     )[:max_per_side]
 
-    return supports + resistances
+    resultat = supports + resistances
+    # Le nuage est ajouté à part, jamais mélangé au classement par
+    # distance des pivots historiques : c'est un niveau dynamique toujours
+    # pertinent (et souvent le prix est dedans, donc ni support ni
+    # résistance au sens des filtres ci-dessus), pas un pivot parmi
+    # d'autres qui devrait pouvoir être évincé par des pivots plus proches
+    # (bug trouvé le 25/10/2026 en même temps que le correctif de
+    # chaînage : avec plus de zones de pivots désormais détectées, le
+    # nuage pouvait disparaître du classement par distance).
+    if ichimoku_result.nuage_haut_actuel is not None and ichimoku_result.nuage_bas_actuel is not None:
+        resultat.append(
+            Level(
+                prix_haut=ichimoku_result.nuage_haut_actuel,
+                prix_bas=ichimoku_result.nuage_bas_actuel,
+                type="nuage",
+            )
+        )
+
+    return resultat
 
 
 # --------------------------------------------------------------------------

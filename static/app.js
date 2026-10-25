@@ -467,19 +467,31 @@ function reinitialiserBoutonAnalyse() {
   document.getElementById("analyse-llm").innerHTML = "";
 }
 
+// Demande explicite du propriétaire (25/10/2026) : un verdict assumé
+// (acheter/vendre/attendre), affiché comme un badge distinct du texte,
+// avec un disclaimer reformulé en conséquence (ce n'est plus "pas un
+// conseil", ça en devient un, donc on le dit honnêtement).
+const VERDICT_INFOS = {
+  acheter: { label: "Acheter", classe: "verdict-acheter" },
+  vendre: { label: "Vendre", classe: "verdict-vendre" },
+  attendre: { label: "Attendre", classe: "verdict-attendre" },
+};
+
 function afficherTexteAnalyse(resultat) {
   const el = document.getElementById("analyse-llm");
   const t = resultat.texte;
   const origine = resultat.source_cache ? "servi depuis le cache (même bougie)" : "généré à l'instant";
+  const verdict = VERDICT_INFOS[t.verdict];
   el.innerHTML = `
     <div class="carte-analyse">
       <h2>Analyse</h2>
+      ${verdict ? `<div class="badge-verdict ${verdict.classe}">${verdict.label}</div>` : ""}
       <h3>Tendance</h3><p>${t.tendance}</p>
       <h3>Niveaux à surveiller</h3><p>${t.niveaux}</p>
       <h3>Scénarios</h3><p>${t.scenarios}</p>
       <h3>Ce qui changerait l'analyse</h3><p>${t.ce_qui_changerait}</p>
       <h3>Risques</h3><p>${t.risques}</p>
-      <p class="meta">Analyse technique automatisée, générée automatiquement. Ce n'est pas un conseil financier. ${origine}, le ${new Date(resultat.genere_le).toLocaleString("fr-FR")}.</p>
+      <p class="meta">Analyse générée automatiquement par IA, à usage strictement personnel. Le verdict peut se tromper : à vérifier par soi-même avant toute décision. ${origine}, le ${new Date(resultat.genere_le).toLocaleString("fr-FR")}.</p>
     </div>
   `;
 }

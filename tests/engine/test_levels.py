@@ -28,6 +28,16 @@ def test_group_into_zones_keeps_prices_separate_beyond_tolerance():
     assert len(zones) == 3
 
 
+def test_group_into_zones_does_not_chain_a_long_trend_into_one_giant_zone():
+    # Bug réel du 25/10/2026 : une suite de pivots proches deux à deux (gap
+    # de 1.0, tolérance 1.0) ne doit jamais se chaîner en une seule zone
+    # couvrant 100 à 105 — chaque zone doit rester bornée par la tolérance.
+    zones = _group_into_zones([100.0, 101.0, 102.0, 103.0, 104.0, 105.0], tolerance=1.0)
+    assert len(zones) == 3
+    for zone in zones:
+        assert zone.prix_haut - zone.prix_bas <= 1.0
+
+
 def test_role_reversal_detected_when_price_flips_side():
     level = Level(prix_haut=105.0, prix_bas=95.0, type="pivot")
     closes = pd.Series([150.0] * 20 + [100.0] * 15 + [50.0] * 5)
@@ -51,12 +61,16 @@ def test_levels_includes_the_cloud_as_a_level_of_type_nuage():
 
 
 def test_levels_respects_max_per_side():
+    # Le nuage est ajouté à part du classement par distance des pivots
+    # (voir test_levels_includes_the_cloud_as_a_level_of_type_nuage) : il
+    # ne compte pas dans le plafond max_per_side, qui ne s'applique qu'aux
+    # niveaux de type "pivot".
     candles = candles_df(90)
     atr_series = atr(candles)
     ichimoku_result = ichimoku(candles)
     result = levels(candles, atr_series, ichimoku_result, max_per_side=3)
     prix = float(candles["close"].iloc[-1])
-    supports = [l for l in result if l.prix_haut <= prix]
-    resistances = [l for l in result if l.prix_bas >= prix]
+    supports = [l for l in result if l.type == "pivot" and l.prix_haut <= prix]
+    resistances = [l for l in result if l.type == "pivot" and l.prix_bas >= prix]
     assert len(supports) <= 3
     assert len(resistances) <= 3
