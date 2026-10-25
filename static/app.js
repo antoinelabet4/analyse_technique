@@ -165,7 +165,14 @@ function initChart() {
     timeScale: { borderColor: "#30363d" },
     rightPriceScale: { borderColor: "#30363d" },
     handleScroll: true,
-    handleScale: true,
+    // Le glissé sur l'axe des prix (à droite, juste sous les étiquettes
+    // MM/Niveau) rescale manuellement l'échelle et désactive l'ajustement
+    // automatique : un toucher accidentel dessus sur mobile peut laisser
+    // le graphique coincé sur une échelle absurde (ex. -25000 à 250000),
+    // bien après que les données affichées restent normales (bug constaté
+    // le 25/10/2026). Le glissé sur l'axe du temps reste autorisé (en plus
+    // des boutons de durée dédiés) ; pincer pour zoomer aussi.
+    handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: { time: true, price: false }, axisDoubleClickReset: true },
   });
   series = chart.addSeries(LightweightCharts.CandlestickSeries, {
     upColor: "#3fb950",
@@ -363,6 +370,12 @@ async function chargerAnalyse() {
     viderCourbesMM();
     DERNIERES_DONNEES = data;
     series.setData(data.candles);
+    // Filet de sécurité : si l'échelle des prix a été laissée en mode
+    // manuel (glissé accidentel sur l'axe, voir correctif du 25/10/2026),
+    // la remettre en ajustement automatique à chaque rechargement plutôt
+    // que de rester bloquée sur une plage qui ne correspond plus aux
+    // données affichées.
+    chart.priceScale("right").applyOptions({ autoScale: true });
     // Applique la durée affichée déjà sélectionnée (1M/3M/.../Tout) : un
     // changement d'actif ou de timeframe ne doit pas réinitialiser le
     // zoom choisi par le propriétaire.

@@ -31,7 +31,12 @@ header {
   z-index: 5;
   background: rgba(11, 14, 20, 0.92);
   backdrop-filter: blur(8px);
-  padding: 0.9rem 1rem 0.6rem;
+  /* En PWA installée (display: standalone + status bar iOS
+     "black-translucent"), le contenu passe sous la barre de statut par
+     défaut : padding de sécurité pour ne jamais recouvrir le titre
+     (bug trouvé le 25/10/2026, "Analyse technique crypto" caché derrière
+     l'heure/les icônes système sur iPhone). */
+  padding: calc(0.9rem + env(safe-area-inset-top, 0px)) 1rem 0.6rem;
   display: flex;
   align-items: baseline;
   justify-content: space-between;
