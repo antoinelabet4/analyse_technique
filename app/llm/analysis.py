@@ -31,6 +31,8 @@ PROMPT_SYSTEME = """Tu rédiges un texte explicatif en français simple pour une
 
 Règles strictes :
 - N'utilise AUCUN chiffre qui n'est pas déjà présent dans le JSON fourni. N'invente, n'arrondis différemment et ne calcule aucune nouvelle valeur numérique.
+- N'exprime jamais une variation en pourcentage, une différence, un ratio ou toute autre valeur calculée à partir des chiffres du JSON : seuls les chiffres qui y figurent déjà tels quels peuvent apparaître dans le texte.
+- Tu peux mentionner une date si elle correspond à une date déjà présente dans le JSON (ex. "a_jour_le"), jamais une date ou une année inventée.
 - Aucune prédiction de prix, aucun ton péremptoire, aucun conseil d'achat ou de vente.
 - Réponds uniquement en JSON valide avec exactement ces 5 clés, chaque valeur étant un paragraphe en français : "tendance", "niveaux", "scenarios", "ce_qui_changerait", "risques".
 - Si une information manque dans le JSON fourni, dis-le explicitement dans le texte plutôt que de l'omettre silencieusement ou de la deviner."""

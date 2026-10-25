@@ -176,3 +176,26 @@ d'itération UI (zones toujours présentes, etc.), traitées séparément.
   passent, dont deux nouveaux qui rejouent précisément les deux pannes
   observées (réponse tronquée, réponse vide) et un qui vérifie le
   réessai automatique.
+- **25/10/2026 (suite)** — `max_tokens` déployé (confirmé par le
+  changement de symptôme : le 502 suivant provenait du contrôle des
+  chiffres, pas d'une réponse tronquée), mais nouveau rejet signalé :
+  "Le texte généré contient des chiffres absents des données ([-25.0,
+  -18.0, -10.0, -5.0, 7.48, 500.0, 2026.0])". Diagnostic : la regex de
+  détection de nombres (`_NOMBRE_RE`) lisait le tiret séparateur d'une
+  date ISO ("2026-10-25") comme un signe moins, produisant -10 et -25 à
+  partir d'une simple date mentionnée dans le texte généré (ex. "à jour
+  au 2026-10-25") ; par ailleurs "2026" seul était rejeté car les facts
+  ne contiennent cette année qu'à l'intérieur d'une chaîne de date,
+  jamais comme nombre brut, et la fonction d'extraction ne regardait que
+  les valeurs numériques, pas les chaînes. Deux correctifs ciblés :
+  lookbehind négatif sur la regex pour ne plus confondre tiret de date et
+  signe moins, et extraction des nombres aussi à l'intérieur des chaînes
+  du JSON "facts" (dates notamment). Le prompt système a aussi été
+  renforcé (interdiction explicite des pourcentages/calculs dérivés et
+  des dates inventées) en mitigation supplémentaire pour les chiffres
+  restants non expliqués par ce bug (7.48, 500.0), qui pourraient être de
+  réelles inventions du modèle. 123 tests passent, dont deux nouveaux qui
+  rejouent exactement le rejet constaté en production avec une date ISO.
+  Non vérifiable en conditions réelles depuis cette session (pas d'accès
+  à l'environnement de production) : à confirmer par le propriétaire
+  après redéploiement.

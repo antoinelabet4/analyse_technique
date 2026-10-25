@@ -64,3 +64,32 @@ orientation paysage) pour mieux le lire.
   (`tests/test_api_analysis.py`, `tests/llm/test_analysis.py` pour
   confirmer que la série n'est pas envoyée au LLM). 117 tests backend
   toujours verts.
+- **25/10/2026 (deux correctifs signalés sur mobile)** :
+  - L'en-tête ("Analyse technique crypto") apparaissait caché sous la
+    barre de statut de l'iPhone en PWA installée. Cause : `display:
+    standalone` + barre de statut iOS "black-translucent" font passer le
+    contenu sous la barre par défaut, sans la marge de sécurité
+    `env(safe-area-inset-top)`. Corrigé en l'ajoutant au padding de
+    l'en-tête (`viewport-fit=cover` était déjà posé, condition requise
+    pour que cette variable CSS soit non nulle). Non vérifiable
+    visuellement depuis cette session (pas d'iPhone réel ni de simulateur
+    d'encoche disponible) : à confirmer par le propriétaire après
+    redéploiement.
+  - L'échelle des prix se bloquait sur une plage aberrante (ex. -25000 à
+    250000, bien plus large que les données réelles) après usage sur
+    mobile. Cause la plus probable, cohérente avec le symptôme observé
+    (étiquettes positionnées proportionnellement à cette plage absurde,
+    bougies réelles correctes mais écrasées dans une bande étroite) :
+    Lightweight Charts permet par défaut de glisser verticalement sur
+    l'axe des prix pour le rescaler manuellement, désactivant
+    l'ajustement automatique — un toucher accidentel sur cet axe,
+    collé aux étiquettes MM/Niveau sur un écran de téléphone, suffit à
+    le déclencher. Corrigé par deux moyens : le glissé sur l'axe des prix
+    est désormais désactivé (`handleScale.axisPressedMouseMove.price:
+    false`, le glissé sur l'axe du temps et le pincement restent actifs),
+    et l'ajustement automatique est explicitement réactivé à chaque
+    rechargement de données en filet de sécurité. Vérifié par un glissé
+    vertical agressif simulé directement sur l'axe des prix (Playwright) :
+    `autoScale` reste actif et l'échelle correcte après le geste, alors
+    qu'elle se serait auparavant bloquée. 120 tests backend toujours
+    verts (changement purement frontend).
