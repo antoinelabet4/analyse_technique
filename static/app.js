@@ -165,9 +165,31 @@ function viderCourbesMM() {
   lignesMM = {};
 }
 
+// La liste des cryptos disponibles est passée de 5 à 22 (25/10/2026),
+// avec des prix d'ordres de grandeur très différents (BTC ~80000, SHIB
+// ~0,000005) : la précision fixe par défaut de Lightweight Charts (2
+// décimales) affichait "0.00" partout pour les actifs à très faible
+// valeur unitaire, rendant les étiquettes de prix inutilisables. La
+// précision est maintenant calculée dynamiquement à partir du prix
+// actuel de l'actif chargé.
+function precisionPourPrix(prix) {
+  const abs = Math.abs(prix ?? 0);
+  if (abs === 0) return 2;
+  if (abs >= 1) return 2;
+  if (abs >= 0.01) return 4;
+  if (abs >= 0.0001) return 6;
+  return 8;
+}
+
+function formatDePrix(prix) {
+  const precision = precisionPourPrix(prix);
+  return { type: "price", precision, minMove: Math.pow(10, -precision) };
+}
+
 function dessinerCourbesMM() {
   viderCourbesMM();
   if (!INDICATEURS_VISIBLES.mm || !DERNIERES_DONNEES?.moyennes_mobiles_serie) return;
+  const priceFormat = formatDePrix(DERNIERES_DONNEES.prix_actuel);
   for (const [nom, points] of Object.entries(DERNIERES_DONNEES.moyennes_mobiles_serie)) {
     if (!points.length) continue;
     const ligneSerie = chart.addSeries(LightweightCharts.LineSeries, {
@@ -177,6 +199,7 @@ function dessinerCourbesMM() {
       priceLineVisible: false,
       crosshairMarkerVisible: false,
       lastValueVisible: true,
+      priceFormat,
     });
     ligneSerie.setData(points.map((p) => ({ time: p.time, value: p.valeur })));
     lignesMM[nom] = ligneSerie;
@@ -198,6 +221,10 @@ function dessinerMACD() {
   serieMACDSignal.applyOptions({ visible });
   serieMACDHistogramme.applyOptions({ visible });
   if (!visible || !DERNIERES_DONNEES) return;
+  const priceFormat = formatDePrix(DERNIERES_DONNEES.prix_actuel);
+  serieMACDLigne.applyOptions({ priceFormat });
+  serieMACDSignal.applyOptions({ priceFormat });
+  serieMACDHistogramme.applyOptions({ priceFormat });
   const points = DERNIERES_DONNEES.macd?.serie || [];
   serieMACDLigne.setData(points.map((p) => ({ time: p.time, value: p.ligne })));
   serieMACDSignal.setData(points.map((p) => ({ time: p.time, value: p.signal })));
@@ -293,7 +320,18 @@ function initChart() {
 
 function formatNombre(n) {
   if (n === null || n === undefined) return "n.d.";
-  return n.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
+  // Même correctif que pour le graphique (25/10/2026, liste étendue à 22
+  // actifs dont certains à très faible valeur unitaire, ex. SHIB) :
+  // 2 décimales fixes affichait "0" pour ces prix, perdant toute
+  // précision utile dans le résumé texte aussi.
+  const abs = Math.abs(n);
+  let maximumFractionDigits = 2;
+  if (abs > 0 && abs < 1) {
+    if (abs >= 0.01) maximumFractionDigits = 4;
+    else if (abs >= 0.0001) maximumFractionDigits = 6;
+    else maximumFractionDigits = 8;
+  }
+  return n.toLocaleString("fr-FR", { maximumFractionDigits });
 }
 
 function viderLignesDePrix() {
@@ -461,6 +499,7 @@ async function chargerAnalyse() {
     viderLignesDePrix();
     viderCourbesMM();
     DERNIERES_DONNEES = data;
+    series.applyOptions({ priceFormat: formatDePrix(data.prix_actuel) });
     series.setData(data.candles);
     // Filet de sécurité : si l'échelle des prix a été laissée en mode
     // manuel (glissé accidentel sur l'axe, voir correctif du 25/10/2026),

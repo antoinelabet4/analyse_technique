@@ -34,6 +34,27 @@ def test_tolerance_arrondi():
     assert conforme
 
 
+def test_actif_a_tres_faible_valeur_unitaire_chiffre_reel_accepte():
+    # Bug réel du 25/10/2026 (liste des actifs étendue à 22 cryptos,
+    # dont SHIB ~0,000005) : l'arrondi à 2 décimales à l'extraction
+    # réduisait tout nombre de cette échelle à "0.0", et le plancher de
+    # tolérance fixe (0.01) aurait de toute façon accepté n'importe quel
+    # petit chiffre comme "assez proche" de zéro.
+    facts = {"prix_actuel": 0.0000052, "macd": {"ligne": -0.0000001}}
+    texte = "Le prix est de 0,0000052 avec un MACD à -0,0000001."
+    conforme, manquants = tous_les_nombres_sont_dans_facts(texte, facts)
+    assert conforme
+    assert manquants == []
+
+
+def test_actif_a_tres_faible_valeur_unitaire_chiffre_invente_rejete():
+    facts = {"prix_actuel": 0.0000052}
+    texte = "Le prix est de 0,0000091."  # jamais présent dans les facts
+    conforme, manquants = tous_les_nombres_sont_dans_facts(texte, facts)
+    assert not conforme
+    assert 0.0000091 in manquants
+
+
 def test_annee_dans_une_date_du_json_est_acceptee():
     # Bug réel en production (25/10/2026) : "2026" était rejeté comme
     # chiffre inventé car il n'apparaissait dans les facts qu'à
