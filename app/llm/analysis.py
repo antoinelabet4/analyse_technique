@@ -18,6 +18,12 @@ from app.llm.facts_check import tous_les_nombres_sont_dans_facts
 DEFAULT_CACHE_PATH = Path("/app/data/cache.db")
 PLAFOND_QUOTIDIEN = 20
 DEBIT_MINIMUM_SECONDES = 10
+# Augmenté de 1500 à 4096 le 25/10/2026 : en production, les deux premiers
+# appels réels (une fois la clé API configurée) ont échoué avec une
+# réponse tronquée en plein milieu d'une chaîne, puis une réponse texte
+# vide — cohérent avec un budget de tokens insuffisant si le modèle
+# consomme des tokens de raisonnement avant le texte JSON visible.
+MAX_TOKENS_REPONSE = 4096
 
 SECTIONS = ["tendance", "niveaux", "scenarios", "ce_qui_changerait", "risques"]
 
@@ -154,12 +160,22 @@ def _appeler_llm(facts: dict, modele: str) -> dict:
     client = anthropic.Anthropic()
     message = client.messages.create(
         model=modele,
-        max_tokens=1500,
+        max_tokens=MAX_TOKENS_REPONSE,
         system=PROMPT_SYSTEME,
         messages=[{"role": "user", "content": json.dumps(_facts_pour_prompt(facts), ensure_ascii=False)}],
     )
     texte_brut = "".join(bloc.text for bloc in message.content if bloc.type == "text")
-    texte = json.loads(texte_brut)
+    try:
+        texte = json.loads(texte_brut)
+    except json.JSONDecodeError as exc:
+        # Diagnostic explicite plutôt qu'une JSONDecodeError peu parlante
+        # (bug du 25/10/2026 : la vraie cause — réponse tronquée ou vide —
+        # était noyée dans une erreur de parsing sans contexte). On trace
+        # la raison d'arrêt et la taille reçue, jamais le contenu intégral.
+        raise TexteNonFiable(
+            f"Réponse LLM non interprétable en JSON (stop_reason={message.stop_reason}, "
+            f"{len(texte_brut)} caractère(s) reçu(s)) : {exc}"
+        ) from exc
     for section in SECTIONS:
         if section not in texte:
             raise TexteNonFiable(f"Section manquante dans la réponse LLM : {section}")
@@ -187,7 +203,16 @@ def generer_analyse(
         # Le plafond compte chaque appel réel à l'API (une regénération en
         # consomme un deuxième), pas chaque clic utilisateur.
         _verifier_et_incrementer_plafond(conn)
-        texte = _appeler_llm(facts, modele_utilise)
+        try:
+            texte = _appeler_llm(facts, modele_utilise)
+        except TexteNonFiable:
+            # Une réponse tronquée ou mal formée n'est pas forcément
+            # reproductible (bug du 25/10/2026) : un seul réessai avant
+            # d'abandonner, même logique que le contrôle des chiffres
+            # ci-dessous. Si le deuxième essai échoue aussi, l'exception
+            # remonte telle quelle.
+            _verifier_et_incrementer_plafond(conn)
+            texte = _appeler_llm(facts, modele_utilise)
         conforme, manquants = tous_les_nombres_sont_dans_facts(json.dumps(texte, ensure_ascii=False), facts)
         if not conforme:
             _verifier_et_incrementer_plafond(conn)

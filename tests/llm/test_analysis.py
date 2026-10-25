@@ -111,3 +111,59 @@ def test_texte_non_fiable_apres_deux_echecs_du_controle(tmp_path: Path, monkeypa
 
     with pytest.raises(TexteNonFiable):
         generer_analyse("BTC", "1d", _facts(), cache_path=cache_path)
+
+
+class _BlocTexte:
+    def __init__(self, texte: str) -> None:
+        self.type = "text"
+        self.text = texte
+
+
+class _MessageFactice:
+    def __init__(self, texte: str, stop_reason: str) -> None:
+        self.content = [_BlocTexte(texte)] if texte else []
+        self.stop_reason = stop_reason
+
+
+def test_appeler_llm_leve_texte_non_fiable_si_reponse_tronquee(monkeypatch):
+    # Bug réel du 25/10/2026 (production) : une fois la clé API configurée,
+    # le premier appel réel a échoué avec une réponse coupée en plein
+    # milieu d'une chaîne JSON (budget de tokens trop court), et une
+    # JSONDecodeError peu parlante remontait jusqu'au client sans qu'on
+    # sache si c'était une panne de la clé, du modèle ou du réseau.
+    reponse_tronquee = '{"tendance": "Prix à 100 au-dessus de la MM200'
+    message_factice = _MessageFactice(reponse_tronquee, stop_reason="max_tokens")
+    client_factice = type("ClientFactice", (), {"messages": type("Messages", (), {"create": staticmethod(lambda **kw: message_factice)})()})()
+    monkeypatch.setattr(analysis_module.anthropic, "Anthropic", lambda: client_factice)
+
+    with pytest.raises(TexteNonFiable, match="max_tokens"):
+        analysis_module._appeler_llm(_facts(), "claude-sonnet-5-5")
+
+
+def test_appeler_llm_leve_texte_non_fiable_si_reponse_vide(monkeypatch):
+    # Deuxième panne réelle observée (25/10/2026) : la réponse ne contenait
+    # aucun bloc de texte du tout.
+    message_factice = _MessageFactice("", stop_reason="end_turn")
+    client_factice = type("ClientFactice", (), {"messages": type("Messages", (), {"create": staticmethod(lambda **kw: message_factice)})()})()
+    monkeypatch.setattr(analysis_module.anthropic, "Anthropic", lambda: client_factice)
+
+    with pytest.raises(TexteNonFiable):
+        analysis_module._appeler_llm(_facts(), "claude-sonnet-5-5")
+
+
+def test_reponse_tronquee_est_reessayee_une_fois(tmp_path: Path, monkeypatch):
+    cache_path = tmp_path / "cache.db"
+    appels = []
+
+    def appel_qui_echoue_puis_reussit(facts, modele):
+        appels.append(1)
+        if len(appels) == 1:
+            raise TexteNonFiable("Réponse LLM non interprétable en JSON (stop_reason=max_tokens) : simulée")
+        return TEXTE_VALIDE
+
+    monkeypatch.setattr(analysis_module, "_appeler_llm", appel_qui_echoue_puis_reussit)
+
+    resultat = generer_analyse("BTC", "1d", _facts(), cache_path=cache_path)
+
+    assert resultat.texte == TEXTE_VALIDE
+    assert len(appels) == 2

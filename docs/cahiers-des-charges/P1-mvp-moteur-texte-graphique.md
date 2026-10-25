@@ -152,3 +152,27 @@ d'itération UI (zones toujours présentes, etc.), traitées séparément.
   non traitée pour l'instant : le nuage ne se projette pas au-delà de la
   dernière bougie (projection future), seule la partie historique est
   dessinée.
+- **25/10/2026** — Premier test réel en production après ajout de
+  `ANTHROPIC_API_KEY` sur Coolify : le bouton "Lancer l'analyse" échouait
+  toujours (502), sans aucune trace exploitable côté serveur (l'exception
+  était interceptée dans `/api/analysis-llm` sans jamais être journalisée
+  — correctif immédiat : `logger.exception(...)` + `logging.basicConfig`
+  explicite). Une fois les logs lisibles, deux pannes réelles identifiées
+  avec la trace complète : une réponse LLM tronquée en plein milieu d'une
+  chaîne JSON (`JSONDecodeError: Unterminated string`), puis une réponse
+  texte totalement vide (`Expecting value: line 1 column 1`) — toutes
+  deux cohérentes avec un budget de tokens insuffisant (`max_tokens=1500`)
+  si le modèle consomme des tokens de raisonnement avant le texte JSON
+  visible. Correctifs : `max_tokens` porté à 4096 ; `_appeler_llm` détecte
+  maintenant explicitement une réponse non interprétable (JSON invalide)
+  et lève une `TexteNonFiable` avec le `stop_reason` et la taille reçue
+  en diagnostic, au lieu de laisser remonter une `JSONDecodeError` sans
+  contexte ; `generer_analyse` réessaie une fois automatiquement sur ce
+  type d'échec (même logique que le réessai déjà en place pour le
+  contrôle des chiffres). Non vérifié en conditions réelles à ce stade
+  (pas d'accès direct à l'environnement de production depuis cette
+  session) : le propriétaire doit confirmer après redéploiement que
+  l'analyse aboutit, sinon renvoyer les nouveaux logs runtime. 120 tests
+  passent, dont deux nouveaux qui rejouent précisément les deux pannes
+  observées (réponse tronquée, réponse vide) et un qui vérifie le
+  réessai automatique.
