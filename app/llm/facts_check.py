@@ -12,7 +12,14 @@ import re
 # quand le texte les mentionne (ex. "RSI 14 à 43,82").
 PERIODES_INDICATEURS_EXEMPTEES = {9, 14, 26, 50, 52, 200}
 
-_NOMBRE_RE = re.compile(r"-?\d[\d\s ]*(?:[.,]\d+)?")
+# Le lookbehind négatif (?<!\d) évite de lire le tiret séparateur d'une
+# date ISO ("2026-10-25") comme un signe moins : sans lui, cette date
+# produisait les nombres -10 et -25, jamais présents dans les facts
+# numériques, ce qui rejetait à tort le texte généré (bug réel trouvé
+# en production le 25/10/2026). Un "-" précédé d'un espace ou en début
+# de chaîne (ex. "une baisse de -5 %") reste bien interprété comme un
+# signe moins.
+_NOMBRE_RE = re.compile(r"(?<!\d)-?\d[\d\s ]*(?:[.,]\d+)?")
 
 
 def _extraire_nombres_facts(facts) -> set[float]:
@@ -23,6 +30,18 @@ def _extraire_nombres_facts(facts) -> set[float]:
             return
         if isinstance(valeur, (int, float)):
             nombres.add(round(float(valeur), 2))
+        elif isinstance(valeur, str):
+            # Une chaîne (ex. une date ISO "a_jour_le": "2026-10-25T...")
+            # peut contenir des chiffres légitimes que le texte explicatif
+            # reprend sans les inventer (bug trouvé le 25/10/2026 en
+            # production : "2026" rejeté comme chiffre absent des données
+            # alors qu'il apparaît bien dans une date du JSON "facts").
+            for m in _NOMBRE_RE.finditer(valeur):
+                brut = m.group().replace(" ", "").replace(" ", "").replace(",", ".")
+                try:
+                    nombres.add(round(float(brut), 2))
+                except ValueError:
+                    continue
         elif isinstance(valeur, dict):
             for v in valeur.values():
                 visiter(v)
