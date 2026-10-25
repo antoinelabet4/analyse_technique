@@ -158,12 +158,23 @@ def _facts_pour_prompt(facts: dict) -> dict:
     return reduit
 
 
-def _appeler_llm(facts: dict, modele: str) -> dict:
+def _appeler_llm(facts: dict, modele: str, chiffres_a_eviter: list[float] | None = None) -> dict:
     client = anthropic.Anthropic()
+    system = PROMPT_SYSTEME
+    if chiffres_a_eviter:
+        # Réessai après un premier rejet : donner les chiffres fautifs au
+        # modèle plutôt que de retenter à l'aveugle avec le même prompt
+        # (bug du 25/10/2026 : sans ce retour, le deuxième essai répétait
+        # souvent la même invention et échouait aussi).
+        system += (
+            "\n\nUne génération précédente a utilisé ces chiffres, absents du JSON fourni : "
+            f"{chiffres_a_eviter}. Ne les réutilise sous aucun prétexte. Relis chaque chiffre "
+            "avant de l'écrire et vérifie qu'il apparaît littéralement dans le JSON fourni."
+        )
     message = client.messages.create(
         model=modele,
         max_tokens=MAX_TOKENS_REPONSE,
-        system=PROMPT_SYSTEME,
+        system=system,
         messages=[{"role": "user", "content": json.dumps(_facts_pour_prompt(facts), ensure_ascii=False)}],
     )
     texte_brut = "".join(bloc.text for bloc in message.content if bloc.type == "text")
@@ -218,7 +229,7 @@ def generer_analyse(
         conforme, manquants = tous_les_nombres_sont_dans_facts(json.dumps(texte, ensure_ascii=False), facts)
         if not conforme:
             _verifier_et_incrementer_plafond(conn)
-            texte = _appeler_llm(facts, modele_utilise)
+            texte = _appeler_llm(facts, modele_utilise, chiffres_a_eviter=manquants)
             conforme, manquants = tous_les_nombres_sont_dans_facts(json.dumps(texte, ensure_ascii=False), facts)
             if not conforme:
                 raise TexteNonFiable(
