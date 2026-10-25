@@ -47,7 +47,7 @@ def test_facts_pour_prompt_retire_les_series_volumineuses():
 
 def test_premier_appel_interroge_le_llm_et_met_en_cache(tmp_path: Path, monkeypatch):
     appels = []
-    monkeypatch.setattr(analysis_module, "_appeler_llm", lambda facts, modele: (appels.append(1), TEXTE_VALIDE)[1])
+    monkeypatch.setattr(analysis_module, "_appeler_llm", lambda facts, modele, **kwargs: (appels.append(1), TEXTE_VALIDE)[1])
 
     resultat = generer_analyse("BTC", "1d", _facts(), cache_path=tmp_path / "cache.db")
 
@@ -59,7 +59,7 @@ def test_premier_appel_interroge_le_llm_et_met_en_cache(tmp_path: Path, monkeypa
 def test_deuxieme_appel_meme_bougie_sert_le_cache_sans_rappeler_le_llm(tmp_path: Path, monkeypatch):
     cache_path = tmp_path / "cache.db"
     appels = []
-    monkeypatch.setattr(analysis_module, "_appeler_llm", lambda facts, modele: (appels.append(1), TEXTE_VALIDE)[1])
+    monkeypatch.setattr(analysis_module, "_appeler_llm", lambda facts, modele, **kwargs: (appels.append(1), TEXTE_VALIDE)[1])
 
     generer_analyse("BTC", "1d", _facts(), cache_path=cache_path)
     resultat = generer_analyse("BTC", "1d", _facts(), cache_path=cache_path)
@@ -72,7 +72,7 @@ def test_nouvelle_bougie_invalide_le_cache(tmp_path: Path, monkeypatch):
     cache_path = tmp_path / "cache.db"
     appels = []
     monkeypatch.setattr(analysis_module, "DEBIT_MINIMUM_SECONDES", 0)
-    monkeypatch.setattr(analysis_module, "_appeler_llm", lambda facts, modele: (appels.append(1), TEXTE_VALIDE)[1])
+    monkeypatch.setattr(analysis_module, "_appeler_llm", lambda facts, modele, **kwargs: (appels.append(1), TEXTE_VALIDE)[1])
 
     generer_analyse("BTC", "1d", _facts(), cache_path=cache_path)
     facts_nouvelle_bougie = _facts()
@@ -87,7 +87,7 @@ def test_plafond_quotidien_atteint(tmp_path: Path, monkeypatch):
     cache_path = tmp_path / "cache.db"
     monkeypatch.setattr(analysis_module, "PLAFOND_QUOTIDIEN", 2)
     monkeypatch.setattr(analysis_module, "DEBIT_MINIMUM_SECONDES", 0)
-    monkeypatch.setattr(analysis_module, "_appeler_llm", lambda facts, modele: TEXTE_VALIDE)
+    monkeypatch.setattr(analysis_module, "_appeler_llm", lambda facts, modele, **kwargs: TEXTE_VALIDE)
 
     generer_analyse("BTC", "1d", _facts(), cache_path=cache_path)
     generer_analyse("ETH", "1d", _facts(), cache_path=cache_path)
@@ -97,7 +97,7 @@ def test_plafond_quotidien_atteint(tmp_path: Path, monkeypatch):
 
 def test_debit_minimum_entre_deux_appels(tmp_path: Path, monkeypatch):
     cache_path = tmp_path / "cache.db"
-    monkeypatch.setattr(analysis_module, "_appeler_llm", lambda facts, modele: TEXTE_VALIDE)
+    monkeypatch.setattr(analysis_module, "_appeler_llm", lambda facts, modele, **kwargs: TEXTE_VALIDE)
 
     generer_analyse("BTC", "1d", _facts(), cache_path=cache_path)
     with pytest.raises(DebitDepasse):
@@ -107,10 +107,32 @@ def test_debit_minimum_entre_deux_appels(tmp_path: Path, monkeypatch):
 def test_texte_non_fiable_apres_deux_echecs_du_controle(tmp_path: Path, monkeypatch):
     cache_path = tmp_path / "cache.db"
     texte_invente = {**TEXTE_VALIDE, "tendance": "Le prix pourrait grimper à 999999,99."}
-    monkeypatch.setattr(analysis_module, "_appeler_llm", lambda facts, modele: texte_invente)
+    monkeypatch.setattr(analysis_module, "_appeler_llm", lambda facts, modele, **kwargs: texte_invente)
 
     with pytest.raises(TexteNonFiable):
         generer_analyse("BTC", "1d", _facts(), cache_path=cache_path)
+
+
+def test_le_reessai_recoit_les_chiffres_rejetes(tmp_path: Path, monkeypatch):
+    # Bug du 25/10/2026 : le deuxième essai utilisait le même prompt que
+    # le premier, sans jamais dire au modèle quels chiffres avaient été
+    # rejetés, ce qui le laissait répéter la même erreur.
+    cache_path = tmp_path / "cache.db"
+    appels_chiffres_a_eviter = []
+
+    def faux_appel(facts, modele, chiffres_a_eviter=None):
+        appels_chiffres_a_eviter.append(chiffres_a_eviter)
+        if chiffres_a_eviter is None:
+            return {**TEXTE_VALIDE, "tendance": "Le prix pourrait grimper à 999999,99."}
+        return TEXTE_VALIDE
+
+    monkeypatch.setattr(analysis_module, "_appeler_llm", faux_appel)
+
+    resultat = generer_analyse("BTC", "1d", _facts(), cache_path=cache_path)
+
+    assert resultat.texte == TEXTE_VALIDE
+    assert appels_chiffres_a_eviter[0] is None
+    assert appels_chiffres_a_eviter[1] == [999999.99]
 
 
 class _BlocTexte:

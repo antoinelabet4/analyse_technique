@@ -199,3 +199,17 @@ d'itération UI (zones toujours présentes, etc.), traitées séparément.
   Non vérifiable en conditions réelles depuis cette session (pas d'accès
   à l'environnement de production) : à confirmer par le propriétaire
   après redéploiement.
+- **25/10/2026 (suite 2)** — Après déploiement du correctif précédent,
+  liste des chiffres rejetés réduite à `[-5.0, 7.78]` (contre 7 chiffres
+  avant) : confirme que les deux bugs de dates étaient bien la cause
+  principale. Les deux chiffres restants semblent de vraies inventions
+  du modèle malgré le prompt renforcé. Cause identifiée : le réessai
+  automatique rappelait le LLM avec exactement le même prompt que le
+  premier essai, sans jamais lui dire quels chiffres avaient été
+  rejetés — le laissant répéter la même erreur. `_appeler_llm` accepte
+  maintenant un paramètre `chiffres_a_eviter`, ajouté au prompt système
+  du réessai pour lister explicitement les chiffres fautifs et demander
+  une relecture. 124 tests passent, dont un nouveau qui vérifie que le
+  réessai reçoit bien la liste exacte des chiffres rejetés par le
+  premier essai. Non vérifiable en conditions réelles depuis cette
+  session : à confirmer par le propriétaire après redéploiement.
