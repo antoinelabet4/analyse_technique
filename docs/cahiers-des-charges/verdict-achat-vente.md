@@ -129,3 +129,24 @@ mémorisé sur l'appareil — voir périmètre et journal ci-dessous.
   détenu → Attendre, neutre → Attendre dans les deux cas). 133 tests
   backend passent, dont un nouveau sur l'invalidation du cache par
   changement de `PROMPT_VERSION`.
+- **25/10/2026 (suite 2)** — Signalé par le propriétaire : "Zone
+  d'opportunités et risques sont toujours identique que je détienne ou
+  pas la crypto". Bug réel, oublié lors du correctif précédent : le
+  badge verdict avait bien été rendu dépendant de la position
+  (`calculerLibelleVerdict`), mais les **zones colorées sur le
+  graphique** et la section "Zones" du résumé texte (dérivées
+  directement des niveaux de pivot, indépendamment du LLM) étaient
+  restées sur l'ancienne logique fixe : support toujours vert
+  ("opportunité"), résistance toujours rouge ("risque"), quelle que
+  soit la position. Corrigé par `estZoneOpportunite(estSupport,
+  detient)` (`static/app.js`) : si on ne détient pas, un support reste
+  une opportunité d'entrée et une résistance un risque de payer trop
+  cher (comportement d'origine) ; si on détient déjà, c'est inversé —
+  une résistance devient l'opportunité de prise de profit, un support
+  le risque de voir la position perdre de la valeur. Appliqué aux
+  bandes du graphique (`dessinerZonesNiveaux`) et à la section "Zones"
+  du résumé (`afficherResume`), toutes deux recalculées instantanément
+  au changement du réglage "Je détiens", sans nouvel appel réseau.
+  Vérifié par Playwright : les couleurs des bandes s'inversent
+  exactement à l'activation du réglage, texte du résumé cohérent.
+  Changement purement frontend, 139 tests backend toujours verts.

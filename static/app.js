@@ -75,16 +75,30 @@ function positionnerBandeDiv(div, prixHaut, prixBas) {
   div.style.right = `${largeurEchelle}px`;
 }
 
-// Une bande colorée par niveau de pivot proche du prix (vert en dessous =
-// zone d'opportunité/support, rouge au-dessus = zone de risque/
-// résistance), à la place des lignes "Niveau" pointillées d'origine :
-// demande explicite du propriétaire (25/10/2026), plus lisible qu'une
-// ligne fine avec une étiquette, dans le même esprit visuel que le nuage
-// Ichimoku. Remplace aussi l'ancienne bande unique dérivée des scénarios.
+// Une zone n'est "opportunité" (vert) ou "risque" (rouge) que relativement
+// à une position : si je ne détiens pas l'actif, je ne peux qu'acheter,
+// donc un support est une opportunité d'entrée et une résistance un
+// risque de payer trop cher ; si je détiens déjà, c'est l'inverse, une
+// résistance devient l'opportunité de prise de profit et un support le
+// risque de voir la position perdre de la valeur. Avant ce correctif
+// (25/10/2026), le support était toujours vert et la résistance toujours
+// rouge, sans jamais tenir compte du réglage "Je détiens" — signalé par
+// le propriétaire ("zone de risque n'est pas clair... si ça monte c'est
+// bien si je détiens").
+function estZoneOpportunite(estSupport, detient) {
+  return detient ? !estSupport : estSupport;
+}
+
+// Une bande colorée par niveau de pivot proche du prix, à la place des
+// lignes "Niveau" pointillées d'origine : demande explicite du
+// propriétaire (25/10/2026), plus lisible qu'une ligne fine avec une
+// étiquette, dans le même esprit visuel que le nuage Ichimoku. Remplace
+// aussi l'ancienne bande unique dérivée des scénarios.
 function dessinerZonesNiveaux() {
   viderBandesNiveaux();
   if (!INDICATEURS_VISIBLES.zones || !DERNIERES_DONNEES) return;
   const prixActuel = DERNIERES_DONNEES.prix_actuel;
+  const detient = !!POSITIONS_DETENUES[ETAT.actif];
   const conteneur = document.getElementById("chart-overlay");
   for (const n of DERNIERES_DONNEES.niveaux) {
     if (n.type !== "pivot") continue;
@@ -92,7 +106,7 @@ function dessinerZonesNiveaux() {
     const estResistance = n.prix_bas >= prixActuel;
     if (!estSupport && !estResistance) continue; // prix à l'intérieur du niveau, cas rare, ignoré
     const div = document.createElement("div");
-    div.className = `bande ${estSupport ? "bande-opportunite" : "bande-risque"}`;
+    div.className = `bande ${estZoneOpportunite(estSupport, detient) ? "bande-opportunite" : "bande-risque"}`;
     conteneur.appendChild(div);
     positionnerBandeDiv(div, n.prix_haut, n.prix_bas);
     bandes.niveaux.push(div);
@@ -418,18 +432,24 @@ function afficherResume(data) {
   // affichées même quand aucune n'est identifiée : le dire explicitement
   // plutôt que de masquer la section en silence (demande du propriétaire,
   // 24/10/2026, étendue le 25/10/2026 aux niveaux désormais multiples).
+  // Le libellé opportunité/risque dépend de la position (voir
+  // estZoneOpportunite) : un support n'est une opportunité que si on ne
+  // détient pas déjà l'actif.
+  const detientActif = !!POSITIONS_DETENUES[data.actif];
   const niveauxPivot = data.niveaux.filter((n) => n.type === "pivot");
-  const zonesOpportunite = niveauxPivot.filter((n) => n.prix_haut <= data.prix_actuel);
-  const zonesRisque = niveauxPivot.filter((n) => n.prix_bas >= data.prix_actuel);
+  const zonesSupport = niveauxPivot.filter((n) => n.prix_haut <= data.prix_actuel);
+  const zonesResistance = niveauxPivot.filter((n) => n.prix_bas >= data.prix_actuel);
+  const zonesOpportunite = estZoneOpportunite(true, detientActif) ? zonesSupport : zonesResistance;
+  const zonesRisque = estZoneOpportunite(true, detientActif) ? zonesResistance : zonesSupport;
   const formaterZone = (n, classeCss, libelle) =>
     `<span class="pastille ${classeCss}"></span> ${libelle} : ${formatNombre(n.prix_bas)}–${formatNombre(n.prix_haut)}${n.touches ? ` (${n.touches} touches)` : ""}`;
   const zones = [
     zonesOpportunite.length
       ? zonesOpportunite.map((n) => formaterZone(n, "pastille-opportunite", "Zone d'opportunité")).join("<br>")
-      : `<span class="pastille pastille-opportunite"></span> Zone d'opportunité : aucun support identifié en dessous du prix actuel`,
+      : `<span class="pastille pastille-opportunite"></span> Zone d'opportunité : aucune identifiée`,
     zonesRisque.length
       ? zonesRisque.map((n) => formaterZone(n, "pastille-risque", "Zone de risque")).join("<br>")
-      : `<span class="pastille pastille-risque"></span> Zone de risque : aucune résistance identifiée au-dessus du prix actuel`,
+      : `<span class="pastille pastille-risque"></span> Zone de risque : aucune identifiée`,
   ];
 
   el.innerHTML = `
@@ -703,9 +723,17 @@ function initPositionDetenue() {
   document.getElementById("case-detention").addEventListener("change", (e) => {
     POSITIONS_DETENUES[ETAT.actif] = e.target.checked;
     sauvegarderPositionsDetenues();
-    // Recalcule immédiatement le badge affiché, sans nouvel appel LLM :
-    // seule la traduction signal -> action change, pas le signal lui-même.
+    // Recalcule immédiatement tout ce qui dépend de la position, sans
+    // nouvel appel réseau : le badge verdict (signal -> action), les
+    // zones du graphique et du résumé (opportunité/risque dépend de si
+    // on détient déjà, voir estZoneOpportunite — signalé par le
+    // propriétaire le 25/10/2026, les zones restaient identiques quelle
+    // que soit la position).
     if (DERNIER_RESULTAT_LLM) afficherTexteAnalyse(DERNIER_RESULTAT_LLM);
+    if (DERNIERES_DONNEES) {
+      dessinerZonesNiveaux();
+      afficherResume(DERNIERES_DONNEES);
+    }
   });
 }
 
