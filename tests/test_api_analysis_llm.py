@@ -25,7 +25,7 @@ def test_api_analysis_llm_retourne_le_texte(monkeypatch):
 
 
 def test_api_analysis_llm_rejette_actif_inconnu():
-    resp = client.post("/api/analysis-llm/DOGE/1d")
+    resp = client.post("/api/analysis-llm/INCONNU/1d")
     assert resp.status_code == 400
 
 

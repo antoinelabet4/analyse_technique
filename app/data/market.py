@@ -18,10 +18,37 @@ KRAKEN_BASE_URL = "https://api.kraken.com"
 HTTP_TIMEOUT_SECONDS = 5.0
 DEFAULT_CACHE_PATH = Path("/app/data/cache.db")
 
+# Les 20 plus grosses cryptos par capitalisation (CoinGecko, 25/10/2026),
+# hors stablecoins (USDT, USDC...) et produits structurés/jetons de bourse
+# propres à une seule plateforme (ex. WBT, LEO) sans réelle pertinence pour
+# une analyse technique, plus TAO et RENDER conservés sur demande explicite
+# du propriétaire bien qu'ils ne soient plus dans le top 20 (rang 37 et 79
+# à cette date) — c'étaient ses choix initiaux. Chaque paire Binance et
+# Kraken listée ici a été vérifiée en conditions réelles (appel direct à
+# l'API OHLC des deux sources, 25/10/2026), pas seulement son existence
+# déclarée : la liste des cryptos disponibles ne doit jamais inclure un
+# actif qui ne peut pas réellement être interrogé par get_candles.
 ASSETS: dict[str, dict[str, str]] = {
     "BTC": {"binance": "BTCUSDT", "kraken": "XBTUSD"},
     "ETH": {"binance": "ETHUSDT", "kraken": "ETHUSD"},
+    "BNB": {"binance": "BNBUSDT", "kraken": "BNBUSD"},
     "XRP": {"binance": "XRPUSDT", "kraken": "XRPUSD"},
+    "SOL": {"binance": "SOLUSDT", "kraken": "SOLUSD"},
+    "TRX": {"binance": "TRXUSDT", "kraken": "TRXUSD"},
+    "ZEC": {"binance": "ZECUSDT", "kraken": "ZECUSD"},
+    "HYPE": {"binance": "HYPEUSDT", "kraken": "HYPEUSD"},
+    "DOGE": {"binance": "DOGEUSDT", "kraken": "XDGUSD"},
+    "LINK": {"binance": "LINKUSDT", "kraken": "LINKUSD"},
+    "ADA": {"binance": "ADAUSDT", "kraken": "ADAUSD"},
+    "XLM": {"binance": "XLMUSDT", "kraken": "XLMUSD"},
+    "NEAR": {"binance": "NEARUSDT", "kraken": "NEARUSD"},
+    "BCH": {"binance": "BCHUSDT", "kraken": "BCHUSD"},
+    "LTC": {"binance": "LTCUSDT", "kraken": "LTCUSD"},
+    "UNI": {"binance": "UNIUSDT", "kraken": "UNIUSD"},
+    "AVAX": {"binance": "AVAXUSDT", "kraken": "AVAXUSD"},
+    "SUI": {"binance": "SUIUSDT", "kraken": "SUIUSD"},
+    "HBAR": {"binance": "HBARUSDT", "kraken": "HBARUSD"},
+    "SHIB": {"binance": "SHIBUSDT", "kraken": "SHIBUSD"},
     "TAO": {"binance": "TAOUSDT", "kraken": "TAOUSD"},
     "RENDER": {"binance": "RENDERUSDT", "kraken": "RENDERUSD"},
 }

@@ -75,16 +75,30 @@ function positionnerBandeDiv(div, prixHaut, prixBas) {
   div.style.right = `${largeurEchelle}px`;
 }
 
-// Une bande colorée par niveau de pivot proche du prix (vert en dessous =
-// zone d'opportunité/support, rouge au-dessus = zone de risque/
-// résistance), à la place des lignes "Niveau" pointillées d'origine :
-// demande explicite du propriétaire (25/10/2026), plus lisible qu'une
-// ligne fine avec une étiquette, dans le même esprit visuel que le nuage
-// Ichimoku. Remplace aussi l'ancienne bande unique dérivée des scénarios.
+// Une zone n'est "opportunité" (vert) ou "risque" (rouge) que relativement
+// à une position : si je ne détiens pas l'actif, je ne peux qu'acheter,
+// donc un support est une opportunité d'entrée et une résistance un
+// risque de payer trop cher ; si je détiens déjà, c'est l'inverse, une
+// résistance devient l'opportunité de prise de profit et un support le
+// risque de voir la position perdre de la valeur. Avant ce correctif
+// (25/10/2026), le support était toujours vert et la résistance toujours
+// rouge, sans jamais tenir compte du réglage "Je détiens" — signalé par
+// le propriétaire ("zone de risque n'est pas clair... si ça monte c'est
+// bien si je détiens").
+function estZoneOpportunite(estSupport, detient) {
+  return detient ? !estSupport : estSupport;
+}
+
+// Une bande colorée par niveau de pivot proche du prix, à la place des
+// lignes "Niveau" pointillées d'origine : demande explicite du
+// propriétaire (25/10/2026), plus lisible qu'une ligne fine avec une
+// étiquette, dans le même esprit visuel que le nuage Ichimoku. Remplace
+// aussi l'ancienne bande unique dérivée des scénarios.
 function dessinerZonesNiveaux() {
   viderBandesNiveaux();
   if (!INDICATEURS_VISIBLES.zones || !DERNIERES_DONNEES) return;
   const prixActuel = DERNIERES_DONNEES.prix_actuel;
+  const detient = !!POSITIONS_DETENUES[ETAT.actif];
   const conteneur = document.getElementById("chart-overlay");
   for (const n of DERNIERES_DONNEES.niveaux) {
     if (n.type !== "pivot") continue;
@@ -92,7 +106,7 @@ function dessinerZonesNiveaux() {
     const estResistance = n.prix_bas >= prixActuel;
     if (!estSupport && !estResistance) continue; // prix à l'intérieur du niveau, cas rare, ignoré
     const div = document.createElement("div");
-    div.className = `bande ${estSupport ? "bande-opportunite" : "bande-risque"}`;
+    div.className = `bande ${estZoneOpportunite(estSupport, detient) ? "bande-opportunite" : "bande-risque"}`;
     conteneur.appendChild(div);
     positionnerBandeDiv(div, n.prix_haut, n.prix_bas);
     bandes.niveaux.push(div);
@@ -165,9 +179,31 @@ function viderCourbesMM() {
   lignesMM = {};
 }
 
+// La liste des cryptos disponibles est passée de 5 à 22 (25/10/2026),
+// avec des prix d'ordres de grandeur très différents (BTC ~80000, SHIB
+// ~0,000005) : la précision fixe par défaut de Lightweight Charts (2
+// décimales) affichait "0.00" partout pour les actifs à très faible
+// valeur unitaire, rendant les étiquettes de prix inutilisables. La
+// précision est maintenant calculée dynamiquement à partir du prix
+// actuel de l'actif chargé.
+function precisionPourPrix(prix) {
+  const abs = Math.abs(prix ?? 0);
+  if (abs === 0) return 2;
+  if (abs >= 1) return 2;
+  if (abs >= 0.01) return 4;
+  if (abs >= 0.0001) return 6;
+  return 8;
+}
+
+function formatDePrix(prix) {
+  const precision = precisionPourPrix(prix);
+  return { type: "price", precision, minMove: Math.pow(10, -precision) };
+}
+
 function dessinerCourbesMM() {
   viderCourbesMM();
   if (!INDICATEURS_VISIBLES.mm || !DERNIERES_DONNEES?.moyennes_mobiles_serie) return;
+  const priceFormat = formatDePrix(DERNIERES_DONNEES.prix_actuel);
   for (const [nom, points] of Object.entries(DERNIERES_DONNEES.moyennes_mobiles_serie)) {
     if (!points.length) continue;
     const ligneSerie = chart.addSeries(LightweightCharts.LineSeries, {
@@ -177,6 +213,7 @@ function dessinerCourbesMM() {
       priceLineVisible: false,
       crosshairMarkerVisible: false,
       lastValueVisible: true,
+      priceFormat,
     });
     ligneSerie.setData(points.map((p) => ({ time: p.time, value: p.valeur })));
     lignesMM[nom] = ligneSerie;
@@ -198,6 +235,10 @@ function dessinerMACD() {
   serieMACDSignal.applyOptions({ visible });
   serieMACDHistogramme.applyOptions({ visible });
   if (!visible || !DERNIERES_DONNEES) return;
+  const priceFormat = formatDePrix(DERNIERES_DONNEES.prix_actuel);
+  serieMACDLigne.applyOptions({ priceFormat });
+  serieMACDSignal.applyOptions({ priceFormat });
+  serieMACDHistogramme.applyOptions({ priceFormat });
   const points = DERNIERES_DONNEES.macd?.serie || [];
   serieMACDLigne.setData(points.map((p) => ({ time: p.time, value: p.ligne })));
   serieMACDSignal.setData(points.map((p) => ({ time: p.time, value: p.signal })));
@@ -293,7 +334,18 @@ function initChart() {
 
 function formatNombre(n) {
   if (n === null || n === undefined) return "n.d.";
-  return n.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
+  // Même correctif que pour le graphique (25/10/2026, liste étendue à 22
+  // actifs dont certains à très faible valeur unitaire, ex. SHIB) :
+  // 2 décimales fixes affichait "0" pour ces prix, perdant toute
+  // précision utile dans le résumé texte aussi.
+  const abs = Math.abs(n);
+  let maximumFractionDigits = 2;
+  if (abs > 0 && abs < 1) {
+    if (abs >= 0.01) maximumFractionDigits = 4;
+    else if (abs >= 0.0001) maximumFractionDigits = 6;
+    else maximumFractionDigits = 8;
+  }
+  return n.toLocaleString("fr-FR", { maximumFractionDigits });
 }
 
 function viderLignesDePrix() {
@@ -380,18 +432,24 @@ function afficherResume(data) {
   // affichées même quand aucune n'est identifiée : le dire explicitement
   // plutôt que de masquer la section en silence (demande du propriétaire,
   // 24/10/2026, étendue le 25/10/2026 aux niveaux désormais multiples).
+  // Le libellé opportunité/risque dépend de la position (voir
+  // estZoneOpportunite) : un support n'est une opportunité que si on ne
+  // détient pas déjà l'actif.
+  const detientActif = !!POSITIONS_DETENUES[data.actif];
   const niveauxPivot = data.niveaux.filter((n) => n.type === "pivot");
-  const zonesOpportunite = niveauxPivot.filter((n) => n.prix_haut <= data.prix_actuel);
-  const zonesRisque = niveauxPivot.filter((n) => n.prix_bas >= data.prix_actuel);
+  const zonesSupport = niveauxPivot.filter((n) => n.prix_haut <= data.prix_actuel);
+  const zonesResistance = niveauxPivot.filter((n) => n.prix_bas >= data.prix_actuel);
+  const zonesOpportunite = estZoneOpportunite(true, detientActif) ? zonesSupport : zonesResistance;
+  const zonesRisque = estZoneOpportunite(true, detientActif) ? zonesResistance : zonesSupport;
   const formaterZone = (n, classeCss, libelle) =>
     `<span class="pastille ${classeCss}"></span> ${libelle} : ${formatNombre(n.prix_bas)}–${formatNombre(n.prix_haut)}${n.touches ? ` (${n.touches} touches)` : ""}`;
   const zones = [
     zonesOpportunite.length
       ? zonesOpportunite.map((n) => formaterZone(n, "pastille-opportunite", "Zone d'opportunité")).join("<br>")
-      : `<span class="pastille pastille-opportunite"></span> Zone d'opportunité : aucun support identifié en dessous du prix actuel`,
+      : `<span class="pastille pastille-opportunite"></span> Zone d'opportunité : aucune identifiée`,
     zonesRisque.length
       ? zonesRisque.map((n) => formaterZone(n, "pastille-risque", "Zone de risque")).join("<br>")
-      : `<span class="pastille pastille-risque"></span> Zone de risque : aucune résistance identifiée au-dessus du prix actuel`,
+      : `<span class="pastille pastille-risque"></span> Zone de risque : aucune identifiée`,
   ];
 
   el.innerHTML = `
@@ -461,6 +519,7 @@ async function chargerAnalyse() {
     viderLignesDePrix();
     viderCourbesMM();
     DERNIERES_DONNEES = data;
+    series.applyOptions({ priceFormat: formatDePrix(data.prix_actuel) });
     series.setData(data.candles);
     // Filet de sécurité : si l'échelle des prix a été laissée en mode
     // manuel (glissé accidentel sur l'axe, voir correctif du 25/10/2026),
@@ -664,9 +723,17 @@ function initPositionDetenue() {
   document.getElementById("case-detention").addEventListener("change", (e) => {
     POSITIONS_DETENUES[ETAT.actif] = e.target.checked;
     sauvegarderPositionsDetenues();
-    // Recalcule immédiatement le badge affiché, sans nouvel appel LLM :
-    // seule la traduction signal -> action change, pas le signal lui-même.
+    // Recalcule immédiatement tout ce qui dépend de la position, sans
+    // nouvel appel réseau : le badge verdict (signal -> action), les
+    // zones du graphique et du résumé (opportunité/risque dépend de si
+    // on détient déjà, voir estZoneOpportunite — signalé par le
+    // propriétaire le 25/10/2026, les zones restaient identiques quelle
+    // que soit la position).
     if (DERNIER_RESULTAT_LLM) afficherTexteAnalyse(DERNIER_RESULTAT_LLM);
+    if (DERNIERES_DONNEES) {
+      dessinerZonesNiveaux();
+      afficherResume(DERNIERES_DONNEES);
+    }
   });
 }
 

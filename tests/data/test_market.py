@@ -97,7 +97,7 @@ def test_get_candles_leve_une_erreur_si_aucune_source_ni_cache(tmp_path: Path, m
 
 def test_get_candles_rejette_un_actif_inconnu(tmp_path: Path):
     with pytest.raises(ValueError):
-        get_candles("DOGE", "1d", cache_path=tmp_path / "cache.db")
+        get_candles("INCONNU", "1d", cache_path=tmp_path / "cache.db")
 
 
 def test_get_candles_rejette_un_timeframe_inconnu(tmp_path: Path):

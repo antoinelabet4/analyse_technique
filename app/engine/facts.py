@@ -34,7 +34,23 @@ def _nombre_ou_none(valeur: Any) -> float | None:
             return None
     except (TypeError, ValueError):
         pass
-    return round(float(valeur), 6)
+    nombre = float(valeur)
+    # Arrondi fixe à 6 décimales : insuffisant pour les actifs à très
+    # faible valeur unitaire (ex. SHIB ~0,000005), ça réduisait le MACD à
+    # 0,0 et perdait toute précision utile (bug trouvé le 25/10/2026, en
+    # même temps que l'extension de la liste des actifs à 22 cryptos).
+    # Plus de décimales pour les petits nombres, comportement inchangé
+    # pour les prix "normaux" (>= 1).
+    abs_nombre = abs(nombre)
+    if abs_nombre == 0 or abs_nombre >= 1:
+        decimales = 6
+    elif abs_nombre >= 0.01:
+        decimales = 8
+    elif abs_nombre >= 0.0001:
+        decimales = 10
+    else:
+        decimales = 12
+    return round(nombre, decimales)
 
 
 def _level_to_dict(level) -> dict:

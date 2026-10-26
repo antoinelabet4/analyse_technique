@@ -82,7 +82,7 @@ def test_api_analysis_alt_includes_force_relative(monkeypatch):
 
 
 def test_api_analysis_rejects_unknown_asset():
-    resp = client.get("/api/analysis/DOGE/1d")
+    resp = client.get("/api/analysis/INCONNU/1d")
     assert resp.status_code == 400
 
 
@@ -100,7 +100,13 @@ def test_api_analysis_returns_503_when_source_unavailable(monkeypatch):
     assert resp.status_code == 503
 
 
-def test_api_assets_lists_the_five_assets():
+def test_api_assets_lists_the_top_20_plus_tao_et_render():
     resp = client.get("/api/assets")
     assert resp.status_code == 200
-    assert set(resp.json()) == {"BTC", "ETH", "XRP", "TAO", "RENDER"}
+    actifs = set(resp.json())
+    assert len(actifs) == 22
+    assert actifs == {
+        "BTC", "ETH", "BNB", "XRP", "SOL", "TRX", "ZEC", "HYPE", "DOGE", "LINK",
+        "ADA", "XLM", "NEAR", "BCH", "LTC", "UNI", "AVAX", "SUI", "HBAR", "SHIB",
+        "TAO", "RENDER",
+    }

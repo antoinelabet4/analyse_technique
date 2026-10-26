@@ -12,6 +12,17 @@ import re
 # quand le texte les mentionne (ex. "RSI 14 à 43,82").
 PERIODES_INDICATEURS_EXEMPTEES = {9, 14, 26, 50, 52, 200}
 
+# Arrondir a 2 decimales a l'extraction perdait toute precision utile
+# pour les actifs a tres faible valeur unitaire (ex. SHIB ~0,000005) :
+# un nombre reel des facts et un chiffre invente par le LLM devenaient
+# tous les deux "0.0", le controle ne detectait plus rien pour ces
+# actifs (bug trouve le 25/10/2026, liste des actifs etendue a 22
+# cryptos). 10 decimales couvrent les deux echelles (BTC et SHIB) sans
+# changer le comportement pour les prix "normaux" : la comparaison
+# "assez proche" reste de toute facon geree par _tolerance ci-dessous,
+# cet arrondi ne sert qu'a neutraliser le bruit de virgule flottante.
+_DECIMALES_EXTRACTION = 10
+
 # Le lookbehind négatif (?<!\d) évite de lire le tiret séparateur d'une
 # date ISO ("2026-10-25") comme un signe moins : sans lui, cette date
 # produisait les nombres -10 et -25, jamais présents dans les facts
@@ -29,7 +40,7 @@ def _extraire_nombres_facts(facts) -> set[float]:
         if isinstance(valeur, bool):
             return
         if isinstance(valeur, (int, float)):
-            nombres.add(round(float(valeur), 2))
+            nombres.add(round(float(valeur), _DECIMALES_EXTRACTION))
         elif isinstance(valeur, str):
             # Une chaîne (ex. une date ISO "a_jour_le": "2026-10-25T...")
             # peut contenir des chiffres légitimes que le texte explicatif
@@ -39,7 +50,7 @@ def _extraire_nombres_facts(facts) -> set[float]:
             for m in _NOMBRE_RE.finditer(valeur):
                 brut = m.group().replace(" ", "").replace(" ", "").replace(",", ".")
                 try:
-                    nombres.add(round(float(brut), 2))
+                    nombres.add(round(float(brut), _DECIMALES_EXTRACTION))
                 except ValueError:
                     continue
         elif isinstance(valeur, dict):
@@ -63,12 +74,26 @@ def _extraire_nombres_texte(texte: str) -> set[float]:
             continue
         if valeur in PERIODES_INDICATEURS_EXEMPTEES:
             continue
-        nombres.add(round(valeur, 2))
+        nombres.add(round(valeur, _DECIMALES_EXTRACTION))
     return nombres
 
 
 def _tolerance(nf: float) -> float:
-    return max(0.01, abs(nf) * 0.005)
+    # Le plancher fixe de 0.01 posait le meme probleme que l'arrondi a
+    # l'extraction : beaucoup trop large pour un actif a 0,000005, il
+    # aurait accepte n'importe quel petit chiffre invente comme "assez
+    # proche" de zero. Plancher proportionnel a l'echelle du nombre
+    # compare plutot qu'une valeur absolue unique.
+    abs_nf = abs(nf)
+    if abs_nf >= 1:
+        plancher = 0.01
+    elif abs_nf >= 0.01:
+        plancher = 0.0001
+    elif abs_nf >= 0.0001:
+        plancher = 0.000001
+    else:
+        plancher = 0.00000001
+    return max(plancher, abs_nf * 0.005)
 
 
 def tous_les_nombres_sont_dans_facts(texte: str, facts: dict) -> tuple[bool, list[float]]:
